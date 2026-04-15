@@ -26,7 +26,8 @@
             <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
-          <view class="translation-text">{{item.chineseMeaning}}</view>
+          <view class="translation-text">{{item.translationText}}</view>
+          <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
         </view>
         <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
       </view>
@@ -42,7 +43,8 @@
             <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
-          <view class="translation-text">{{item.chineseMeaning}}</view>
+          <view class="translation-text">{{item.translationText}}</view>
+          <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
         </view>
         <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
       </view>

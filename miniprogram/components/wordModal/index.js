@@ -29,5 +29,14 @@ Component({
         audio: detail.audio || "",
       });
     },
+    onOpenCard(e) {
+      const { id } = (e && e.currentTarget && e.currentTarget.dataset) || {};
+      if (!id) {
+        return;
+      }
+      this.triggerEvent("opencard", {
+        id,
+      });
+    },
   },
 });

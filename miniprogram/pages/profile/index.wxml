@@ -4,21 +4,47 @@
     <view class="profile-main">
       <view class="name-row">
         <view class="name">{{profile.nickName}}</view>
-        <picker wx:if="{{profile.loggedIn}}" mode="selector" range="{{['普通用户','vip']}}" bindchange="onRoleChange">
-          <view class="role-picker">
-            <view class="role-tag {{userRole === 'vip' ? 'vip' : ''}}">{{userRole}}</view>
-            <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-          </view>
-        </picker>
+        <view wx:if="{{profile.loggedIn}}" class="role-tag {{profile.memberStatus === 'vip' ? 'vip' : ''}}">
+          {{memberLabel}}
+        </view>
       </view>
-      <view class="sub">{{profile.loggedIn ? '已登录' : '未登录'}}</view>
     </view>
-    <button wx:if="{{!profile.loggedIn}}" class="login-btn" bindtap="onLoginTap">微信登录</button>
+    <view class="profile-actions">
+      <button wx:if="{{!profile.loggedIn && !profileLoading}}" class="login-btn" bindtap="onLoginTap">微信登录</button>
+      <view wx:if="{{profile.loggedIn}}" class="profile-more" bindtap="onLogoutTap">
+        <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+      </view>
+    </view>
   </view>
 
-  <view class="card member-card">
-    <view class="row-title">会员卡片（占位）</view>
-    <image class="member-image" src="/images/default-goods-image.png" mode="aspectFill" />
+  <view wx:if="{{showProfileEditor}}" class="card profile-editor-card">
+    <view class="editor-title">完善资料</view>
+    <view class="editor-sub">微信当前规则下，头像和昵称需要你手动确认填写。</view>
+    <view class="editor-avatar-row">
+      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image class="editor-avatar" src="{{editAvatarUrl}}" mode="aspectFill" />
+      </button>
+      <view class="editor-avatar-tip">点击头像选择微信头像</view>
+    </view>
+    <input
+      class="nick-input"
+      type="nickname"
+      placeholder="请输入昵称"
+      value="{{editNickName}}"
+      bindinput="onNickNameInput"
+    />
+    <button class="save-btn" loading="{{savingProfile}}" bindtap="onSaveProfile">保存资料</button>
+  </view>
+
+  <view class="card member-card" bindtap="onOpenMemberCenter">
+    <view class="member-badge">{{profile.memberStatus === 'vip' ? '永久权益' : '99 元买断'}}</view>
+    <view class="member-title">永久 VIP</view>
+    <view class="member-desc">解锁全部卡片、无广告体验、学习报告权益与后续更多音色。</view>
+    <view class="member-foot">
+      <view class="member-meta" wx:if="{{profile.memberStatus === 'vip'}}">当前账号已永久解锁</view>
+      <view class="member-meta" wx:else>今日剩余可解锁卡片 {{freeRemainingCount}} 张</view>
+      <view class="member-link">{{profile.memberStatus === 'vip' ? '查看权益' : '立即开通'}}</view>
+    </view>
   </view>
 
   <view class="section-title">设置</view>
@@ -69,15 +95,15 @@
     <view class="setting-row clickable" bindtap="onClearCache">
       <view class="row-title">清除缓存</view>
       <view class="row-right">
-          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-        </view>
+        <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+      </view>
     </view>
 
     <view class="setting-row clickable" bindtap="onAboutUs">
       <view class="row-title">关于我们</view>
       <view class="row-right">
-          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-        </view>
+        <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+      </view>
     </view>
   </view>
 </view>

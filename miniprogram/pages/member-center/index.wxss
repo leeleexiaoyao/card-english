@@ -1,0 +1,132 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(255, 220, 177, 0.18), transparent 26%),
+    linear-gradient(180deg, #f7f2ea 0%, #f4f6fb 100%);
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.state-text {
+  margin-top: 240rpx;
+  text-align: center;
+  color: #7a7a7a;
+  font-size: 28rpx;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.hero-card,
+.section-card,
+.status-card {
+  border-radius: 28rpx;
+  padding: 28rpx;
+  box-shadow: 0 18rpx 44rpx rgba(26, 35, 56, 0.08);
+}
+
+.hero-card {
+  background:
+    radial-gradient(circle at top right, rgba(255, 219, 162, 0.32), transparent 36%),
+    linear-gradient(135deg, #1c2233 0%, #2e2239 100%);
+  color: #ffffff;
+}
+
+.hero-badge {
+  width: fit-content;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 22rpx;
+}
+
+.hero-title {
+  margin-top: 18rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+}
+
+.hero-sub {
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hero-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14rpx;
+  margin-top: 24rpx;
+}
+
+.price-value {
+  font-size: 72rpx;
+  font-weight: 700;
+}
+
+.price-note {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.section-card {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.benefit-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.benefit-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #d38d2d;
+  flex-shrink: 0;
+}
+
+.benefit-text,
+.meta-copy {
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.meta-copy + .meta-copy {
+  margin-top: 12rpx;
+}
+
+.status-card {
+  background: rgba(47, 114, 255, 0.08);
+  color: #2f72ff;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.pay-btn {
+  margin-top: 6rpx;
+  height: 92rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #ebac49 0%, #c98523 100%);
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.pay-btn[disabled] {
+  background: #cbd5e1;
+  color: #f8fafc;
+}

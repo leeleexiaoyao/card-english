@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/auth/index",
     "pages/home/index",
     "pages/library/index",
     "pages/word/index",
@@ -7,6 +8,7 @@
     "pages/sentence-detail/index",
     "pages/word-detail/index",
     "pages/about/index",
+    "pages/member-center/index",
     "pages/index/index",
     "pages/example/index"
   ],

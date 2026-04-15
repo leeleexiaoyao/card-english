@@ -55,6 +55,10 @@
   gap: 14rpx;
 }
 
+.meta-line {
+  margin-bottom: 8rpx;
+}
+
 .word-text {
   font-size: 48rpx;
   font-weight: 700;
@@ -64,6 +68,16 @@
 .phonetic-text {
   font-size: 26rpx;
   color: #666666;
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: #eef3ff;
+  font-size: 22rpx;
+  color: #3f63ff;
 }
 
 .play-btn {
@@ -90,21 +104,6 @@
   margin-bottom: 8rpx;
 }
 
-.meaning-item {
-  margin-bottom: 8rpx;
-}
-
-.part {
-  font-size: 24rpx;
-  color: #5a7cff;
-  margin-right: 10rpx;
-}
-
-.definition {
-  font-size: 24rpx;
-  color: #333333;
-}
-
 .line-text {
   font-size: 24rpx;
   color: #444444;
@@ -112,3 +111,35 @@
   margin-top: 6rpx;
 }
 
+.related-card-item {
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #eaedf3;
+}
+
+.related-card-item:first-child {
+  padding-top: 4rpx;
+}
+
+.related-card-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.related-card-order {
+  font-size: 22rpx;
+  color: #6f7d95;
+}
+
+.related-card-english {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #1f2329;
+  line-height: 1.5;
+}
+
+.related-card-chinese {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #5b6370;
+  line-height: 1.5;
+}

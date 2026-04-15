@@ -1,0 +1,30 @@
+<view class="container">
+  <text class="title">TTS 测试页面</text>
+  
+  <view class="input-section">
+    <text class="label">测试文本：</text>
+    <textarea 
+      class="input" 
+      value="{{testText}}" 
+      bindinput="onTextChange"
+      placeholder="请输入要测试的文本"
+    ></textarea>
+  </view>
+  
+  <button 
+    class="test-btn" 
+    bindtap="testTts"
+    loading="{{loading}}"
+    disabled="{{loading}}"
+  >
+    测试 TTS
+  </button>
+  
+  <view wx:if="{{error}}" class="error-message">
+    {{error}}
+  </view>
+  
+  <view wx:if="{{success}}" class="success-message">
+    TTS 测试成功！
+  </view>
+</view>

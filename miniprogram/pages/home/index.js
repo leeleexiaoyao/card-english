@@ -13,6 +13,7 @@ const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
 const { getSentenceTtsPath } = require("../../utils/tts");
+const { consumeSentenceAccess } = require("../../utils/membership");
 
 const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
 
@@ -51,6 +52,9 @@ Page({
 
   onLoad() {
     this.audioContext = this.createAudioContext();
+    this.swiperGuarding = false;
+    this.initialSentenceAccessDone = false;
+    this.initialSentenceAccessPromise = null;
     // 立即显示加载状态
     this.setData({
       loading: true,
@@ -148,6 +152,7 @@ Page({
           loading: false,
         });
         this.setActiveIndex(0, false);
+        this.consumeInitialSentenceAccess();
       }
       
       // 2. 异步获取最新数据（包括图片URL和用户状态）
@@ -179,6 +184,7 @@ Page({
         loading: false,
       });
       this.setActiveIndex(currentIndex, false);
+      this.consumeInitialSentenceAccess();
     } catch (err) {
       console.error('[home] loadPageData failed', err);
       this.setData({
@@ -301,12 +307,7 @@ Page({
     if (nextIndex === previousIndex) {
       return;
     }
-
-    this.setActiveIndex(nextIndex, false);
-
-    if (this.data.settings.autoPlayAudio) {
-      this.onPlaySentenceAudio();
-    }
+    this.handleSwipeToIndex(nextIndex, previousIndex);
   },
 
   onTapImage(e) {
@@ -329,6 +330,101 @@ Page({
 
   noop() {},
 
+  async handleSwipeToIndex(nextIndex, previousIndex) {
+    if (this.swiperGuarding) {
+      return;
+    }
+    if (nextIndex > previousIndex) {
+      this.setActiveIndex(nextIndex, false);
+      const allowed = await this.ensureSentenceAccess(nextIndex);
+      if (!allowed) {
+        this.swiperGuarding = true;
+        this.setActiveIndex(previousIndex, false);
+        this.setData({
+          swiperCurrent: previousIndex,
+        });
+        setTimeout(() => {
+          this.swiperGuarding = false;
+        }, 0);
+        return;
+      }
+    }
+
+    this.setActiveIndex(nextIndex, false);
+    if (this.data.settings.autoPlayAudio) {
+      this.onPlaySentenceAudio();
+    }
+  },
+
+  async ensureSentenceAccess(targetIndex) {
+    await this.ensureInitialSentenceAccessReady();
+    const sentence = this.data.sentences[targetIndex];
+    if (!sentence) {
+      return false;
+    }
+    const result = await consumeSentenceAccess(sentence._id);
+    if (result && result.success && result.allowed) {
+      return true;
+    }
+    if (!result || !result.success) {
+      wx.showToast({
+        title: (result && result.errMsg) || "权限校验失败",
+        icon: "none",
+      });
+      return false;
+    }
+    this.showVipUpgradeDialog();
+    return false;
+  },
+
+  async ensureInitialSentenceAccessReady() {
+    if (!this.initialSentenceAccessPromise) {
+      return;
+    }
+    await this.initialSentenceAccessPromise;
+  },
+
+  async consumeInitialSentenceAccess() {
+    if (this.initialSentenceAccessDone) {
+      return;
+    }
+    if (this.initialSentenceAccessPromise) {
+      return this.initialSentenceAccessPromise;
+    }
+    const firstSentence = this.data.sentences[0];
+    if (!firstSentence || !firstSentence._id) {
+      this.initialSentenceAccessDone = true;
+      return;
+    }
+
+    this.initialSentenceAccessPromise = consumeSentenceAccess(firstSentence._id)
+      .catch((err) => {
+        console.error("[home] consume initial sentence access failed", err);
+      })
+      .finally(() => {
+        this.initialSentenceAccessDone = true;
+        this.initialSentenceAccessPromise = null;
+      });
+    return this.initialSentenceAccessPromise;
+  },
+
+  showVipUpgradeDialog() {
+    wx.showModal({
+      title: "升级 VIP",
+      content: "今日免费卡片已用完，升级 VIP 继续查看全部卡片",
+      confirmText: "升级 VIP",
+      cancelText: "稍后再说",
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        wx.navigateTo({
+          url: "/pages/member-center/index",
+        });
+      },
+    });
+  },
+
   goPrev() {
     const nextIndex = this.data.currentIndex - 1;
     if (nextIndex < 0) {
@@ -343,13 +439,17 @@ Page({
     });
   },
 
-  goNext() {
+  async goNext() {
     const nextIndex = this.data.currentIndex + 1;
     if (nextIndex >= this.data.sentences.length) {
       wx.showToast({
         title: "已经是最后一条",
         icon: "none",
       });
+      return;
+    }
+    const allowed = await this.ensureSentenceAccess(nextIndex);
+    if (!allowed) {
       return;
     }
     this.setData({
@@ -381,6 +481,10 @@ Page({
     });
 
     if (currentIndex < sentences.length - 1) {
+      const allowed = await this.ensureSentenceAccess(currentIndex + 1);
+      if (!allowed) {
+        return;
+      }
       this.setData({
         swiperCurrent: currentIndex + 1,
       });
@@ -500,5 +604,18 @@ Page({
 
   onPlayWordAudio(e) {
     this.playAudio(e.detail.audio);
+  },
+
+  onOpenWordCard(e) {
+    const { id } = (e && e.detail) || {};
+    if (!id) {
+      return;
+    }
+    this.setData({
+      wordModalVisible: false,
+    });
+    wx.navigateTo({
+      url: `/pages/sentence-detail/index?id=${encodeURIComponent(id)}`,
+    });
   },
 });

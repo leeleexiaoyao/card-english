@@ -2,9 +2,12 @@ const { getSettings, updateSettings } = require("../../utils/settings");
 const { clearSentenceCache } = require("../../utils/sentence-repo");
 const { WORD_DETAIL_CACHE_KEY } = require("../../utils/dictionary");
 const { clearTtsCache } = require("../../utils/tts");
+const {
+  getMembershipLabel,
+  getRemainingFreeCount,
+  getCurrentDateKey,
+} = require("../../utils/membership");
 
-const USER_PROFILE_KEY = "user_profile_v1";
-const USER_ROLE_KEY = "user_role_v1";
 const RATE_OPTIONS = [0.5, 1, 2];
 const SPEECH_RATE_OPTIONS = [
   { label: "慢", value: 3 },
@@ -23,8 +26,16 @@ Page({
       loggedIn: false,
       nickName: "未登录",
       avatarUrl: "/images/icons/avatar.png",
+      profileCompleted: false,
+      memberStatus: "free",
     },
-    userRole: "普通用户",
+    profileLoading: false,
+    showProfileEditor: false,
+    editNickName: "",
+    editAvatarUrl: "/images/icons/avatar.png",
+    savingProfile: false,
+    memberLabel: "普通用户",
+    freeRemainingCount: 2,
     settings: getSettings(),
     rateOptions: RATE_OPTIONS,
     playRateLabels: RATE_OPTIONS.map((item) => `${item}x`),
@@ -42,10 +53,11 @@ Page({
 
   onShow() {
     this.loadProfile();
-    this.loadUserRole();
     const settings = getSettings();
     this.setData({
       settings,
+      memberLabel: getMembershipLabel(this.data.profile),
+      freeRemainingCount: getRemainingFreeCount(this.data.profile, getCurrentDateKey()),
       playRateIndex: this.getPlayRateIndex(settings.playRate),
       playRateLabel: this.getPlayRateLabel(settings.playRate),
       speechRateIndex: this.getSpeechRateIndex(settings.speechRate),
@@ -85,57 +97,306 @@ Page({
     return this.data.voiceGenderLabels[index];
   },
 
-  loadUserRole() {
-    this.setData({
-      userRole: wx.getStorageSync(USER_ROLE_KEY) || "普通用户",
-    });
+  buildLoggedOutProfile() {
+    return {
+      loggedIn: false,
+      nickName: "未登录",
+      avatarUrl: "/images/icons/avatar.png",
+      profileCompleted: false,
+      memberStatus: "free",
+      dailyQuotaDate: "",
+      dailyUnlockedSentenceIds: [],
+    };
   },
 
-  loadProfile() {
-    const profile = wx.getStorageSync(USER_PROFILE_KEY);
-    if (profile && profile.loggedIn) {
+  buildProfile(user) {
+    const normalizedUser = user || {};
+    return {
+      loggedIn: Boolean(normalizedUser.openid),
+      nickName: normalizedUser.nickName || "微信用户",
+      avatarUrl: normalizedUser.avatarUrl || "/images/icons/avatar.png",
+      profileCompleted: Boolean(normalizedUser.profileCompleted),
+      memberStatus: normalizedUser.memberStatus || "free",
+      dailyQuotaDate: normalizedUser.dailyQuotaDate || "",
+      dailyUnlockedSentenceIds: Array.isArray(normalizedUser.dailyUnlockedSentenceIds)
+        ? normalizedUser.dailyUnlockedSentenceIds
+        : [],
+    };
+  },
+
+  async resolveAvatarUrl(avatarUrl = "") {
+    if (!avatarUrl || !avatarUrl.startsWith("cloud://")) {
+      return avatarUrl || "/images/icons/avatar.png";
+    }
+    try {
+      const res = await wx.cloud.getTempFileURL({
+        fileList: [avatarUrl],
+      });
+      const file = (res.fileList || [])[0] || {};
+      return file.tempFileURL || "/images/icons/avatar.png";
+    } catch (err) {
+      return "/images/icons/avatar.png";
+    }
+  },
+
+  async decorateUser(user) {
+    if (!user) {
+      return null;
+    }
+    return {
+      ...user,
+      avatarUrl: await this.resolveAvatarUrl(user.avatarUrl || ""),
+    };
+  },
+
+  async loadProfile() {
+    this.setData({
+      profileLoading: true,
+    });
+    const app = getApp();
+    const authEnabled = Boolean(app && app.globalData && app.globalData.authEnabled);
+    if (!authEnabled) {
       this.setData({
-        profile,
+        profile: this.buildLoggedOutProfile(),
+        memberLabel: getMembershipLabel(null),
+        freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
+        showProfileEditor: false,
+        editNickName: "",
+        editAvatarUrl: "/images/icons/avatar.png",
+        profileLoading: false,
       });
       return;
     }
+
+    try {
+      const cachedUser = app && app.globalData ? app.globalData.user : null;
+      const user = cachedUser && cachedUser.openid
+        ? cachedUser
+        : await app.ensureUser();
+      const decoratedUser = await this.decorateUser(user);
+      this.setData({
+        profile: this.buildProfile(decoratedUser),
+        memberLabel: getMembershipLabel(decoratedUser),
+        freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
+        showProfileEditor: Boolean(decoratedUser && !decoratedUser.profileCompleted),
+        editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
+        editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
+      });
+    } catch (err) {
+      this.setData({
+        profile: this.buildLoggedOutProfile(),
+        memberLabel: getMembershipLabel(null),
+        freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
+        showProfileEditor: false,
+        editNickName: "",
+        editAvatarUrl: "/images/icons/avatar.png",
+      });
+    }
+
     this.setData({
-      profile: {
-        loggedIn: false,
-        nickName: "未登录",
-        avatarUrl: "/images/icons/avatar.png",
-      },
+      profileLoading: false,
     });
   },
 
   onLoginTap() {
-    wx.getUserProfile({
-      desc: "用于展示头像和昵称",
-      success: (res) => {
-        const profile = {
-          loggedIn: true,
-          nickName: res.userInfo.nickName || "微信用户",
-          avatarUrl: res.userInfo.avatarUrl || "/images/icons/avatar.png",
-        };
-        wx.setStorageSync(USER_PROFILE_KEY, profile);
-        this.setData({
-          profile,
+    const app = getApp();
+    const cachedUser = app && typeof app.getCachedUser === "function" ? app.getCachedUser() : null;
+    if (cachedUser && cachedUser.openid) {
+      wx.showLoading({
+        title: "登录中",
+        mask: true,
+      });
+      Promise.resolve()
+        .then(() => app.beginLogin())
+        .then(async (user) => {
+          const decoratedUser = await this.decorateUser(user || cachedUser);
+          this.setData({
+            profile: this.buildProfile(decoratedUser),
+            memberLabel: getMembershipLabel(decoratedUser),
+            freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
+            showProfileEditor: false,
+            editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
+            editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
+          });
+        })
+        .catch((err) => {
+          console.error("[profile] login failed", err);
+          wx.showToast({
+            title: (err && err.errMsg) || "登录失败",
+            icon: "none",
+          });
+        })
+        .finally(() => {
+          wx.hideLoading();
         });
+      return;
+    }
+
+    wx.getUserProfile({
+      desc: "用于同步头像和昵称",
+      success: async (res) => {
+        wx.showLoading({
+          title: "登录中",
+          mask: true,
+        });
+        try {
+          const user = await app.completeLoginWithUserProfile(res.userInfo || {});
+          const decoratedUser = await this.decorateUser(user);
+          this.setData({
+            profile: this.buildProfile(decoratedUser),
+            memberLabel: getMembershipLabel(decoratedUser),
+            freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
+            showProfileEditor: false,
+            editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
+            editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
+          });
+        } catch (err) {
+          console.error("[profile] login failed", err);
+          wx.showToast({
+            title: (err && err.errMsg) || "登录失败",
+            icon: "none",
+          });
+        } finally {
+          wx.hideLoading();
+        }
       },
       fail: () => {
         wx.showToast({
-          title: "未授权登录",
+          title: "已取消授权",
           icon: "none",
         });
       },
     });
   },
 
-  onRoleChange(e) {
-    const value = e.detail.value === "1" ? "vip" : "普通用户";
-    wx.setStorageSync(USER_ROLE_KEY, value);
+  onChooseAvatar(e) {
+    const avatarUrl = (e.detail && e.detail.avatarUrl) || "";
+    if (!avatarUrl) {
+      return;
+    }
     this.setData({
-      userRole: value,
+      editAvatarUrl: avatarUrl,
+    });
+  },
+
+  onNickNameInput(e) {
+    this.setData({
+      editNickName: String((e.detail && e.detail.value) || ""),
+    });
+  },
+
+  async onSaveProfile() {
+    const app = getApp();
+    const currentUser = app && app.globalData ? app.globalData.user : null;
+    if (!currentUser || !currentUser.openid) {
+      wx.showToast({
+        title: "请先登录",
+        icon: "none",
+      });
+      return;
+    }
+
+    const nickName = String(this.data.editNickName || "").trim();
+    if (!nickName) {
+      wx.showToast({
+        title: "请输入昵称",
+        icon: "none",
+      });
+      return;
+    }
+
+    this.setData({
+      savingProfile: true,
+    });
+    wx.showLoading({
+      title: "保存中",
+      mask: true,
+    });
+
+    try {
+      let avatarUrl = this.data.editAvatarUrl || "/images/icons/avatar.png";
+      if (avatarUrl.indexOf("/images/") === 0) {
+        avatarUrl = "";
+      } else if (avatarUrl && !avatarUrl.startsWith("cloud://") && !avatarUrl.startsWith("http")) {
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `avatars/${currentUser.openid}-${Date.now()}.png`,
+          filePath: avatarUrl,
+        });
+        avatarUrl = uploadRes.fileID || avatarUrl;
+      }
+
+      const result = await wx.cloud.callFunction({
+        name: "quickstartFunctions",
+        data: {
+          type: "updateUserProfile",
+          nickName,
+          avatarUrl,
+        },
+      });
+      const user = (result.result && result.result.user) || null;
+      if (app && typeof app.setCurrentUser === "function" && user) {
+        app.setCurrentUser(user);
+      }
+      const decoratedUser = await this.decorateUser(user);
+      this.setData({
+        profile: this.buildProfile(decoratedUser),
+        memberLabel: getMembershipLabel(decoratedUser),
+        freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
+        showProfileEditor: false,
+        editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
+        editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
+      });
+      wx.showToast({
+        title: "资料已保存",
+        icon: "success",
+      });
+    } catch (err) {
+      wx.showToast({
+        title: "保存失败",
+        icon: "none",
+      });
+    } finally {
+      this.setData({
+        savingProfile: false,
+      });
+      wx.hideLoading();
+    }
+  },
+
+  onLogoutTap() {
+    wx.showModal({
+      title: "退出登录",
+      content: "",
+      confirmText: "退出",
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        const app = getApp();
+        app.clearCurrentUser();
+        this.setData({
+          profile: this.buildLoggedOutProfile(),
+          memberLabel: getMembershipLabel(null),
+          freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
+          showProfileEditor: false,
+          editNickName: "",
+          editAvatarUrl: "/images/icons/avatar.png",
+        });
+        setTimeout(() => {
+          wx.reLaunch({
+            url: "/pages/auth/index",
+            fail: (err) => {
+              console.error("[profile] reLaunch auth failed", err);
+              wx.navigateTo({
+                url: "/pages/auth/index",
+                fail: (navErr) => {
+                  console.error("[profile] navigateTo auth failed", navErr);
+                },
+              });
+            },
+          });
+        }, 50);
+      },
     });
   },
 
@@ -253,6 +514,12 @@ Page({
   onAboutUs() {
     wx.navigateTo({
       url: "/pages/about/index",
+    });
+  },
+
+  onOpenMemberCenter() {
+    wx.navigateTo({
+      url: "/pages/member-center/index",
     });
   },
 });

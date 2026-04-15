@@ -9,19 +9,13 @@
           <text class="word">{{detail.word}}</text>
           <text class="phonetic">{{detail.phonetic}}</text>
         </view>
+        <view wx:if="{{detail.posText}}" class="meta-line">
+          <text class="meta-tag">{{detail.posText}}</text>
+        </view>
       </view>
       <view wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">
         <text class="play-icon-text">播</text>
       </view>
-    </view>
-
-    <view class="card">
-      <view class="card-title">词性与释义</view>
-      <view wx:for="{{detail.meanings}}" wx:key="index" class="meaning-item">
-        <text wx:if="{{item.partOfSpeech}}" class="part">{{item.partOfSpeech}}</text>
-        <text class="definition">{{item.definition}}</text>
-      </view>
-      <view class="line-text">中文释义：{{detail.chineseMeaning}}</view>
     </view>
 
     <view wx:if="{{detail.definitionText}}" class="card">
@@ -29,14 +23,40 @@
       <view class="line-text">{{detail.definitionText}}</view>
     </view>
 
-    <view wx:if="{{detail.detailText}}" class="card">
-      <view class="card-title">补充说明</view>
-      <view class="line-text">{{detail.detailText}}</view>
+    <view wx:if="{{detail.translationText || detail.chineseMeaning}}" class="card">
+      <view class="card-title">中文释义</view>
+      <view class="line-text">{{detail.translationText || detail.chineseMeaning}}</view>
     </view>
 
-    <view wx:if="{{detail.forms.length}}" class="card">
-      <view class="card-title">词形（时态/单复数）</view>
-      <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+    <view wx:if="{{detail.tagText}}" class="card">
+      <view class="card-title">标签</view>
+      <view class="line-text">{{detail.tagText}}</view>
+    </view>
+
+    <view wx:if="{{detail.exchangeText || detail.forms.length}}" class="card">
+      <view class="card-title">词形变化</view>
+      <view wx:if="{{detail.exchangeText}}" class="line-text">{{detail.exchangeText}}</view>
+      <view wx:elif="{{detail.forms.length}}">
+        <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">卡片释义</view>
+      <view wx:if="{{detail.relatedCards.length}}">
+        <view
+          wx:for="{{detail.relatedCards}}"
+          wx:key="id"
+          class="related-card-item"
+          data-id="{{item.id}}"
+          bindtap="onTapRelatedCard"
+        >
+          <view class="related-card-order">卡片 {{item.order}}</view>
+          <view class="related-card-english">{{item.english}}</view>
+          <view class="related-card-chinese">{{item.chinese}}</view>
+        </view>
+      </view>
+      <view wx:else class="line-text">当前词没有命中卡片内容</view>
     </view>
   </view>
 </view>

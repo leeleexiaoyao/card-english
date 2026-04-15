@@ -19,6 +19,9 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .avatar {
@@ -26,10 +29,12 @@
   height: 92rpx;
   border-radius: 50%;
   background: #e9eaed;
+  flex-shrink: 0;
 }
 
 .profile-main {
   flex: 1;
+  min-width: 0;
 }
 
 .name-row {
@@ -65,33 +70,151 @@
   color: #ff8829;
 }
 
-.role-picker {
+.profile-actions {
   display: flex;
-  align-items: center;
-  gap: 8rpx;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
+  flex-shrink: 0;
 }
 
-.sub {
-  margin-top: 6rpx;
-  font-size: 24rpx;
-  color: #808080;
-}
-
-.login-btn {
+.login-btn,
+.save-btn,
+.avatar-picker {
   margin: 0;
-  padding: 12rpx 20rpx;
+}
+
+.login-btn,
+.save-btn {
+  padding: 12rpx 24rpx;
   border-radius: 999rpx;
-  background: #0478F5;
+  background: #0478f5;
   color: #ffffff;
   font-size: 24rpx;
   line-height: 1.2;
 }
 
-.member-card,
+.profile-more {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-editor-card,
 .setting-card {
   display: flex;
   flex-direction: column;
   gap: 14rpx;
+}
+
+.member-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 171, 0.26), transparent 36%),
+    linear-gradient(135deg, #1c2233 0%, #2f2239 100%);
+  color: #ffffff;
+}
+
+.member-badge {
+  width: fit-content;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 22rpx;
+}
+
+.member-title {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.member-desc {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.member-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.member-meta {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.member-link {
+  min-width: 160rpx;
+  height: 58rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #1e2434;
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.editor-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.editor-sub {
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.editor-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.avatar-picker {
+  width: 104rpx;
+  height: 104rpx;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.avatar-picker::after {
+  border: 0;
+}
+
+.editor-avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: #e9eaed;
+}
+
+.editor-avatar-tip {
+  font-size: 24rpx;
+  color: #475569;
+}
+
+.nick-input {
+  height: 84rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  color: #1e293b;
 }
 
 .section-title {
@@ -137,11 +260,4 @@
   width: 48rpx;
   height: 48rpx;
   object-fit: contain;
-}
-
-.member-image {
-  width: 100%;
-  height: 220rpx;
-  border-radius: 12rpx;
-  background: #f0f0f0;
 }

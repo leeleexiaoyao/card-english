@@ -20,7 +20,7 @@
               <view class="card-overlay"></view>
               <view class="top-actions">
                 <image class="icon-btn" wx:if="{{currentIndex === index}}" src="/assets/icon/icon_sound_open.svg" catchtap="onPlaySentenceAudio" />
-                <image class="icon-btn" wx:if="{{currentIndex === index}}" src="{{currentSentence.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" catchtap="onToggleFavorited" />
+                <image class="icon-btn" wx:if="{{currentIndex === index}}" src="{{item.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" catchtap="onToggleFavorited" />
               </view>
 
               <view class="card-bottom" catchtap="noop">
@@ -63,6 +63,7 @@
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
     bind:close="onCloseWordModal"
+    bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"
   />
 </view>

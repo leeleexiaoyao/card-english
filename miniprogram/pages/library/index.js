@@ -4,6 +4,9 @@ const {
   getLocalSentenceStateMap,
   mergeSentencesWithState,
   buildCounts,
+  lazyLoadImageUrl,
+  preloadImageUrls,
+  resolveImageUrl,
 } = require("../../utils/sentence-repo");
 const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
@@ -85,10 +88,19 @@ Page({
     return audioContext;
   },
 
+  buildSentenceViewModel(sentence) {
+    return {
+      ...sentence,
+      resolvedImageUrl: resolveImageUrl(sentence),
+    };
+  },
+
   refreshPageStateFromLocal() {
     const settings = getSettings();
     const stateMap = getLocalSentenceStateMap();
-    const allSentences = mergeSentencesWithState(this.data.allSentences, stateMap);
+    const allSentences = mergeSentencesWithState(this.data.allSentences, stateMap).map((item) =>
+      this.buildSentenceViewModel(item)
+    );
     this.setData({
       settings,
       allSentences,
@@ -107,12 +119,16 @@ Page({
       settings: getSettings(),
     });
     try {
-      const sentences = await fetchSentences();
+      const sentences = await fetchSentences({
+        resolveImages: false,
+      });
       const sentenceIds = sentences.map((item) => item._id);
       const stateMap = await fetchUserStateMap(sentenceIds, {
         preferLocal: !syncRemoteState,
       });
-      const allSentences = mergeSentencesWithState(sentences, stateMap);
+      const allSentences = mergeSentencesWithState(sentences, stateMap).map((item) =>
+        this.buildSentenceViewModel(item)
+      );
       this.setData({
         allSentences,
         counts: buildCounts(allSentences),
@@ -147,6 +163,57 @@ Page({
         ...item,
         englishTokens: tokenizeSentence(item.english),
       })),
+    });
+    this.ensurePreviewImageUrls();
+  },
+
+  ensurePreviewImageUrls() {
+    const previewList = this.data.filteredSentences.slice(0, 12);
+    const cloudFileIds = previewList
+      .map((item) => item.imageUrl)
+      .filter((url) => url && url.startsWith("cloud://"));
+
+    if (cloudFileIds.length) {
+      preloadImageUrls(cloudFileIds);
+    }
+
+    previewList.forEach((sentence) => {
+      if (!sentence || !sentence.imageUrl || !sentence.imageUrl.startsWith("cloud://")) {
+        return;
+      }
+      if (sentence.resolvedImageUrl && !sentence.resolvedImageUrl.startsWith("cloud://")) {
+        return;
+      }
+      lazyLoadImageUrl(sentence.imageUrl)
+        .then((localPath) => {
+          if (!localPath || localPath === sentence.resolvedImageUrl) {
+            return;
+          }
+          this.patchSentenceImage(sentence._id, localPath);
+        })
+        .catch(() => {});
+    });
+  },
+
+  patchSentenceImage(sentenceId, resolvedImageUrl) {
+    if (!sentenceId || !resolvedImageUrl) {
+      return;
+    }
+
+    const updateList = (list) =>
+      list.map((item) => {
+        if (item._id !== sentenceId) {
+          return item;
+        }
+        return {
+          ...item,
+          resolvedImageUrl,
+        };
+      });
+
+    this.setData({
+      allSentences: updateList(this.data.allSentences),
+      filteredSentences: updateList(this.data.filteredSentences),
     });
   },
 
@@ -306,5 +373,18 @@ Page({
 
   onPlayWordAudio(e) {
     this.playAudio(e.detail.audio);
+  },
+
+  onOpenWordCard(e) {
+    const { id } = (e && e.detail) || {};
+    if (!id) {
+      return;
+    }
+    this.setData({
+      wordModalVisible: false,
+    });
+    wx.navigateTo({
+      url: `/pages/sentence-detail/index?id=${encodeURIComponent(id)}`,
+    });
   },
 });

@@ -1,0 +1,41 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state-text">加载中...</view>
+
+  <view wx:else class="content">
+    <view class="hero-card">
+      <view class="hero-badge">{{memberLabel}}</view>
+      <view class="hero-title">99 元永久 VIP</view>
+      <view class="hero-sub" wx:if="{{profile && profile.memberStatus === 'vip'}}">当前账号已解锁全部卡片和会员权益</view>
+      <view class="hero-sub" wx:else>今日还可解锁 {{remainingCount}} 张新卡片</view>
+      <view class="hero-price-row">
+        <text class="price-value">¥{{priceText}}</text>
+        <text class="price-note">一次买断</text>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">VIP 权益</view>
+      <view wx:for="{{vipBenefits}}" wx:key="index" class="benefit-row">
+        <view class="benefit-dot"></view>
+        <view class="benefit-text">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">权益说明</view>
+      <view class="meta-copy">广告与学习报告能力已经预留，后续功能上线后自动归属 VIP。</view>
+      <view class="meta-copy">更多音色会继续追加，当前版本先保留现有两种免费音色。</view>
+    </view>
+
+    <view wx:if="{{statusMessage}}" class="status-card">{{statusMessage}}</view>
+
+    <button
+      class="pay-btn"
+      loading="{{paying}}"
+      disabled="{{paying || (profile && profile.memberStatus === 'vip')}}"
+      bindtap="onOpenVip"
+    >
+      {{profile && profile.memberStatus === 'vip' ? '已开通永久 VIP' : '立即开通永久 VIP'}}
+    </button>
+  </view>
+</view>

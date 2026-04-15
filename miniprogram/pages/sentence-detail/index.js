@@ -9,6 +9,7 @@ const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
 const { getSentenceTtsPath } = require("../../utils/tts");
+const { consumeSentenceAccess } = require("../../utils/membership");
 
 const SENTENCE_DETAIL_CONTEXT_KEY = "sentence_detail_context_v1";
 
@@ -42,6 +43,7 @@ Page({
 
   onLoad(options) {
     this.audioContext = this.createAudioContext();
+    this.swiperGuarding = false;
     this.setData({
       sentenceId: options.id || "",
       source: options.source || "",
@@ -203,21 +205,11 @@ Page({
 
   onSwiperChange(e) {
     const nextIndex = e.detail.current;
-    if (nextIndex === this.data.currentIndex) {
+    const previousIndex = this.data.currentIndex;
+    if (nextIndex === previousIndex) {
       return;
     }
-    const sentence = this.data.sentences[nextIndex];
-    if (!sentence) {
-      return;
-    }
-    this.setData({
-      sentenceId: sentence._id,
-      currentIndex: nextIndex,
-      currentSentence: sentence,
-    });
-    if (this.data.settings.autoPlayAudio) {
-      this.onPlaySentenceAudio();
-    }
+    this.handleSwipeToIndex(nextIndex, previousIndex);
   },
 
   goPrev() {
@@ -234,7 +226,7 @@ Page({
     });
   },
 
-  goNext() {
+  async goNext() {
     const nextIndex = this.data.currentIndex + 1;
     if (nextIndex >= this.data.sentences.length) {
       wx.showToast({
@@ -243,8 +235,80 @@ Page({
       });
       return;
     }
+    const allowed = await this.ensureSentenceAccess(nextIndex);
+    if (!allowed) {
+      return;
+    }
     this.setData({
       swiperCurrent: nextIndex,
+    });
+  },
+
+  async handleSwipeToIndex(nextIndex, previousIndex) {
+    if (this.swiperGuarding) {
+      return;
+    }
+    if (nextIndex > previousIndex) {
+      const allowed = await this.ensureSentenceAccess(nextIndex);
+      if (!allowed) {
+        this.swiperGuarding = true;
+        this.setData({
+          swiperCurrent: previousIndex,
+        });
+        setTimeout(() => {
+          this.swiperGuarding = false;
+        }, 0);
+        return;
+      }
+    }
+    const sentence = this.data.sentences[nextIndex];
+    if (!sentence) {
+      return;
+    }
+    this.setData({
+      sentenceId: sentence._id,
+      currentIndex: nextIndex,
+      currentSentence: sentence,
+    });
+    if (this.data.settings.autoPlayAudio) {
+      this.onPlaySentenceAudio();
+    }
+  },
+
+  async ensureSentenceAccess(targetIndex) {
+    const sentence = this.data.sentences[targetIndex];
+    if (!sentence) {
+      return false;
+    }
+    const result = await consumeSentenceAccess(sentence._id);
+    if (result && result.success && result.allowed) {
+      return true;
+    }
+    if (!result || !result.success) {
+      wx.showToast({
+        title: (result && result.errMsg) || "权限校验失败",
+        icon: "none",
+      });
+      return false;
+    }
+    this.showVipUpgradeDialog();
+    return false;
+  },
+
+  showVipUpgradeDialog() {
+    wx.showModal({
+      title: "今日免费卡片已用完",
+      content: "开通 VIP，立即解锁全部卡片、无广告体验和学习报告权益",
+      confirmText: "立即开通 VIP",
+      cancelText: "稍后再说",
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        wx.navigateTo({
+          url: "/pages/member-center/index",
+        });
+      },
     });
   },
 
@@ -405,5 +469,18 @@ Page({
 
   onPlayWordAudio(e) {
     this.playAudio(e.detail.audio);
+  },
+
+  onOpenWordCard(e) {
+    const { id } = (e && e.detail) || {};
+    if (!id) {
+      return;
+    }
+    this.setData({
+      wordModalVisible: false,
+    });
+    wx.navigateTo({
+      url: `/pages/sentence-detail/index?id=${encodeURIComponent(id)}`,
+    });
   },
 });

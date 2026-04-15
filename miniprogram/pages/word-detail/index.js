@@ -83,4 +83,14 @@ Page({
     this.audioContext.playbackRate = Number(this.data.settings.playRate || 1);
     this.audioContext.play();
   },
+
+  onTapRelatedCard(e) {
+    const { id } = e.currentTarget.dataset;
+    if (!id) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/sentence-detail/index?id=${encodeURIComponent(id)}`,
+    });
+  },
 });

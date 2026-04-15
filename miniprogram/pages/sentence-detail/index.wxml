@@ -58,6 +58,7 @@
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
     bind:close="onCloseWordModal"
+    bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"
   />
 </view>

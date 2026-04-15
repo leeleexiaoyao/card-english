@@ -1,7 +1,9 @@
-const { guessWordForms } = require("./word");
+const { sentenceBank } = require("../data/sentenceBank");
+const { cardImagePool } = require("../data/cardImagePool");
+const { guessWordForms, tokenizeSentence } = require("./word");
 
-const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v1_";
-const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v2";
+const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v2_";
+const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v3";
 const WORD_DEFAULT_PAGE_SIZE = 200;
 const WORD_MAX_PAGE_SIZE = 200;
 const WORD_SEARCH_LIMIT = 50;
@@ -71,6 +73,14 @@ function summarizeMeaning(item = {}) {
   return firstLine.length > 64 ? `${firstLine.slice(0, 64)}...` : firstLine;
 }
 
+function summarizeTranslation(raw = "") {
+  const firstLine = splitLines(raw, 1)[0] || "";
+  if (!firstLine) {
+    return "暂无释义";
+  }
+  return firstLine.length > 96 ? `${firstLine.slice(0, 96)}...` : firstLine;
+}
+
 function parsePosList(raw = "") {
   return cleanText(raw)
     .split(/[;,/、]/)
@@ -124,11 +134,60 @@ function parseForms(exchange = "", fallbackWord = "") {
   return forms.length ? forms : guessWordForms(fallbackWord);
 }
 
+function formatForms(forms = []) {
+  return forms
+    .filter((item) => item && item.label && item.value)
+    .map((item) => `${item.label}：${item.value}`)
+    .join("\n");
+}
+
+function buildRelatedCards(item = {}) {
+  const word = String(item.word || "").trim().toLowerCase();
+  if (!word) {
+    return [];
+  }
+
+  const forms = parseForms(item.exchange, word);
+  const targets = new Set([word]);
+  forms.forEach((form) => {
+    const value = String((form && form.value) || "").trim().toLowerCase();
+    if (value) {
+      targets.add(value);
+    }
+  });
+
+  return sentenceBank
+    .map((sentence, index) => {
+      const order = sentence.order || index + 1;
+      const fallbackImageUrl =
+        Array.isArray(cardImagePool) && order > 0 && order <= cardImagePool.length
+          ? cardImagePool[order - 1]
+          : "";
+      return {
+        id: sentence.id || sentence._id || `sentence-${order}`,
+        _id: sentence._id || sentence.id || `sentence-${order}`,
+        order,
+        english: sentence.english || "",
+        chinese: sentence.chinese || "",
+        imageUrl: sentence.imageUrl || sentence.image || fallbackImageUrl,
+      };
+    })
+    .filter((sentence) => {
+      const tokens = tokenizeSentence(sentence.english)
+        .filter((token) => token.isWord)
+        .map((token) => token.word);
+      return tokens.some((token) => targets.has(token));
+    })
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+}
+
 function normalizeListItem(item = {}) {
   return {
     _id: item._id || "",
     word: String(item.word || "").trim(),
     phonetic: cleanText(item.phonetic) || "暂无",
+    translationText: summarizeTranslation(item.translation || item.definition || item.detail || ""),
+    tagText: cleanText(item.tag),
     chineseMeaning: summarizeMeaning(item),
     pos: cleanText(item.pos),
     audio: item.audio || "",
@@ -141,6 +200,7 @@ function normalizeListItem(item = {}) {
 
 function normalizeDetail(item = {}) {
   const word = String(item.word || "").trim();
+  const forms = parseForms(item.exchange, word);
   return {
     word,
     phonetic: cleanText(item.phonetic) || "暂无",
@@ -149,11 +209,13 @@ function normalizeDetail(item = {}) {
     meanings: buildMeanings(item),
     englishExample: "",
     chineseExample: "",
-    forms: parseForms(item.exchange, word),
-    detailText: cleanText(item.detail),
+    forms,
+    translationText: cleanText(item.translation),
+    exchangeText: cleanText(item.exchange) || formatForms(forms),
     definitionText: cleanText(item.definition),
     posText: cleanText(item.pos),
     tagText: cleanText(item.tag),
+    relatedCards: buildRelatedCards(item),
     collins: Number(item.collins || 0),
     oxford: Number(item.oxford || 0),
     bnc: Number(item.bnc || 0),
@@ -273,8 +335,10 @@ async function getWordPreview(word) {
     word: detail.word,
     phonetic: detail.phonetic,
     audio: detail.audio,
-    chineseMeaning: detail.chineseMeaning,
+    translationText: detail.translationText || detail.chineseMeaning,
+    chineseMeaning: detail.translationText || detail.chineseMeaning,
     pos: detail.posText,
+    tagText: detail.tagText,
   };
 }
 
