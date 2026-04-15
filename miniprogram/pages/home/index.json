@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "首页",
+  "navigationBarBackgroundColor": "#F5F6F8",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "word-modal": "/components/wordModal/index"
+  }
+}

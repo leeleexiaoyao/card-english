@@ -1,0 +1,103 @@
+.page {
+  min-height: 100vh;
+  background: #f4f5f7;
+  padding: 18rpx;
+  box-sizing: border-box;
+}
+
+.state-text {
+  margin-top: 220rpx;
+  text-align: center;
+  color: #7a7a7a;
+  font-size: 28rpx;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.hero {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.hero-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.word-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.word {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #111111;
+}
+
+.phonetic {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+.play-btn {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: #edf2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.play-icon-text {
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #222222;
+  margin-bottom: 10rpx;
+}
+
+.meaning-item {
+  margin-bottom: 10rpx;
+}
+
+.part {
+  font-size: 24rpx;
+  color: #4f6fff;
+  margin-right: 12rpx;
+}
+
+.definition {
+  font-size: 25rpx;
+  color: #333333;
+}
+
+.line-text {
+  font-size: 25rpx;
+  color: #3e3e3e;
+  line-height: 1.65;
+  margin-top: 6rpx;
+}

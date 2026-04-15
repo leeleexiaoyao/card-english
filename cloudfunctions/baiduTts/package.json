@@ -1,0 +1,12 @@
+{
+  "name": "baiduTts",
+  "version": "1.0.0",
+  "description": "Baidu TTS proxy for miniprogram",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no tests\""
+  },
+  "dependencies": {
+    "wx-server-sdk": "~2.4.0"
+  }
+}

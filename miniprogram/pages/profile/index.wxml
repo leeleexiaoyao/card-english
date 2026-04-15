@@ -1,0 +1,83 @@
+<view class="page">
+  <view class="card profile-card">
+    <image class="avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
+    <view class="profile-main">
+      <view class="name-row">
+        <view class="name">{{profile.nickName}}</view>
+        <picker wx:if="{{profile.loggedIn}}" mode="selector" range="{{['普通用户','vip']}}" bindchange="onRoleChange">
+          <view class="role-picker">
+            <view class="role-tag {{userRole === 'vip' ? 'vip' : ''}}">{{userRole}}</view>
+            <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+          </view>
+        </picker>
+      </view>
+      <view class="sub">{{profile.loggedIn ? '已登录' : '未登录'}}</view>
+    </view>
+    <button wx:if="{{!profile.loggedIn}}" class="login-btn" bindtap="onLoginTap">微信登录</button>
+  </view>
+
+  <view class="card member-card">
+    <view class="row-title">会员卡片（占位）</view>
+    <image class="member-image" src="/images/default-goods-image.png" mode="aspectFill" />
+  </view>
+
+  <view class="section-title">设置</view>
+  <view class="card setting-card">
+    <view class="setting-row">
+      <view class="row-title">默认显示中文</view>
+      <switch checked="{{settings.defaultShowChinese}}" color="#0478F5" bindchange="onToggleDefaultChinese" />
+    </view>
+
+    <view class="setting-row">
+      <view class="row-title">自动播放音频</view>
+      <switch checked="{{settings.autoPlayAudio}}" color="#0478F5" bindchange="onToggleAutoPlay" />
+    </view>
+
+    <view class="setting-row clickable">
+      <view class="row-title">播放倍速</view>
+      <picker mode="selector" range="{{playRateLabels}}" value="{{playRateIndex}}" bindchange="onPlayRatePickerChange">
+        <view class="row-right">
+          <view class="row-value picker-value">{{playRateLabel}}</view>
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+      </picker>
+    </view>
+
+    <view class="setting-row clickable">
+      <view class="row-title">音色</view>
+      <picker mode="selector" range="{{voiceGenderLabels}}" value="{{voiceGenderIndex}}" bindchange="onVoiceGenderPickerChange">
+        <view class="row-right">
+          <view class="row-value picker-value">{{voiceGenderLabel}}</view>
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+      </picker>
+    </view>
+
+    <view class="setting-row clickable">
+      <view class="row-title">语速</view>
+      <picker mode="selector" range="{{speechRateLabels}}" value="{{speechRateIndex}}" bindchange="onSpeechRatePickerChange">
+        <view class="row-right">
+          <view class="row-value picker-value">{{speechRateLabel}}</view>
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+      </picker>
+    </view>
+  </view>
+
+  <view class="section-title">其他</view>
+  <view class="card setting-card">
+    <view class="setting-row clickable" bindtap="onClearCache">
+      <view class="row-title">清除缓存</view>
+      <view class="row-right">
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+    </view>
+
+    <view class="setting-row clickable" bindtap="onAboutUs">
+      <view class="row-title">关于我们</view>
+      <view class="row-right">
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+    </view>
+  </view>
+</view>

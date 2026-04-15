@@ -1,0 +1,153 @@
+.page {
+  min-height: 100vh;
+  background: #f5f6f8;
+  padding: 18rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  box-shadow: 0 14rpx 40rpx rgba(15, 23, 42, 0.05);
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.avatar {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 50%;
+  background: #e9eaed;
+}
+
+.profile-main {
+  flex: 1;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e1e1e;
+}
+
+.role-tag {
+  min-width: 100rpx;
+  height: 44rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  background: rgba(47, 114, 255, 0.12);
+  color: #2f72ff;
+  font-size: 22rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.role-tag.vip {
+  background: rgba(255, 136, 41, 0.14);
+  color: #ff8829;
+}
+
+.role-picker {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.sub {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #808080;
+}
+
+.login-btn {
+  margin: 0;
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  background: #0478F5;
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 1.2;
+}
+
+.member-card,
+.setting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.section-title {
+  margin-top: 12rpx;
+  padding: 6rpx 4rpx 0;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2f2f2f;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.row-title {
+  font-size: 28rpx;
+  color: #222222;
+}
+
+.row-value {
+  font-size: 26rpx;
+  color: #cccccc;
+}
+
+.clickable {
+  padding: 8rpx 0;
+}
+
+.picker-value {
+  color: #cccccc;
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  justify-content: flex-end;
+}
+
+.more-arrow {
+  font-size: 28rpx;
+  color: #a2a2a2;
+  line-height: 1;
+}
+
+.more-arrow image {
+  width: 16rpx;
+  height: 16rpx;
+  object-fit: contain;
+}
+
+.member-image {
+  width: 100%;
+  height: 220rpx;
+  border-radius: 12rpx;
+  background: #f0f0f0;
+}

@@ -1,0 +1,43 @@
+<view wx:if="{{visible}}" class="modal-mask" catchtouchmove="noop">
+  <view class="modal-card">
+    <view class="modal-header">
+      <text class="modal-title">单词详情</text>
+      <text class="modal-close" bindtap="onClose">×</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="modal-loading">加载中...</view>
+    <view wx:elif="{{error}}" class="modal-error">{{error}}</view>
+
+    <view wx:elif="{{detail}}" class="modal-content">
+      <view class="word-line">
+        <text class="word-text">{{detail.word}}</text>
+        <text class="phonetic-text">{{detail.phonetic}}</text>
+        <button wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
+      </view>
+
+      <view class="section">
+        <view class="section-title">词性与释义</view>
+        <view wx:for="{{detail.meanings}}" wx:key="index" class="meaning-item">
+          <text wx:if="{{item.partOfSpeech}}" class="part">{{item.partOfSpeech}}</text>
+          <text class="definition">{{item.definition}}</text>
+        </view>
+        <view class="line-text">中文释义：{{detail.chineseMeaning}}</view>
+      </view>
+
+      <view wx:if="{{detail.definitionText}}" class="section">
+        <view class="section-title">英文释义</view>
+        <view class="line-text">{{detail.definitionText}}</view>
+      </view>
+
+      <view wx:if="{{detail.detailText}}" class="section">
+        <view class="section-title">补充说明</view>
+        <view class="line-text">{{detail.detailText}}</view>
+      </view>
+
+      <view wx:if="{{detail.forms.length}}" class="section">
+        <view class="section-title">词形</view>
+        <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+      </view>
+    </view>
+  </view>
+</view>

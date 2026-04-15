@@ -1,0 +1,55 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/library/index",
+    "pages/word/index",
+    "pages/profile/index",
+    "pages/sentence-detail/index",
+    "pages/word-detail/index",
+    "pages/about/index",
+    "pages/index/index",
+    "pages/example/index"
+  ],
+  "window": {
+    "backgroundColor": "#F6F6F6",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#F6F6F6",
+    "navigationBarTitleText": "卡片英语学习",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#0478F5",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/icon/Tabicon/tab_icon_homepage_unselected.png",
+        "selectedIconPath": "assets/icon/Tabicon/tab_icon_homepage_selected.png"
+      },
+      {
+        "pagePath": "pages/library/index",
+        "text": "句库",
+        "iconPath": "assets/icon/Tabicon/tab_icon_sentences_unselected.png",
+        "selectedIconPath": "assets/icon/Tabicon/tab_icon_sentences_selected.png"
+      },
+      {
+        "pagePath": "pages/word/index",
+        "text": "单词",
+        "iconPath": "assets/icon/Tabicon/tab_icon_words_unselected.png",
+        "selectedIconPath": "assets/icon/Tabicon/tab_icon_words_selected.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "assets/icon/Tabicon/tab_icon_user_unselected.png",
+        "selectedIconPath": "assets/icon/Tabicon/tab_icon_user_selected.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

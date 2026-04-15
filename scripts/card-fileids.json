@@ -1,0 +1,38 @@
+{
+  "sentence-1": {
+    "cloudPath": "cards-v2/card-0001.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0001.jpg"
+  },
+  "sentence-2": {
+    "cloudPath": "cards-v2/card-0002.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0002.jpg"
+  },
+  "sentence-3": {
+    "cloudPath": "cards-v2/card-0003.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0003.jpg"
+  },
+  "sentence-4": {
+    "cloudPath": "cards-v2/card-0004.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0004.jpg"
+  },
+  "sentence-5": {
+    "cloudPath": "cards-v2/card-0005.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0005.jpg"
+  },
+  "sentence-6": {
+    "cloudPath": "cards-v2/card-0006.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0006.jpg"
+  },
+  "sentence-7": {
+    "cloudPath": "cards-v2/card-0007.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0007.jpg"
+  },
+  "sentence-8": {
+    "cloudPath": "cards-v2/card-0008.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0008.jpg"
+  },
+  "sentence-9": {
+    "cloudPath": "cards-v2/card-0009.jpg",
+    "fileID": "cloud://cloud1-4gsbdd828457096e.636c-cloud1-4gsbdd828457096e-1419193677/cards-v2/card-0009.jpg"
+  }
+}

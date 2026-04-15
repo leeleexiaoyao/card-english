@@ -1,0 +1,90 @@
+.page {
+  min-height: 100vh;
+  background: #f5f6f8;
+  padding: 18rpx;
+  box-sizing: border-box;
+}
+
+.state-text {
+  margin-top: 240rpx;
+  text-align: center;
+  color: #7a7a7a;
+  font-size: 28rpx;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.word-item {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.word-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.word-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.word-text {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #202020;
+}
+
+.phonetic-inline {
+  font-size: 22rpx;
+  color: #6e6e6e;
+}
+
+.pos-tag {
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: #eef3ff;
+  font-size: 20rpx;
+  color: #3f63ff;
+}
+
+.translation-text {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: #4a4a4a;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.audio-btn {
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 50%;
+  background: #edf0ff;
+  color: #3f63ff;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.load-more {
+  margin: 12rpx 0 24rpx;
+  text-align: center;
+  color: #888888;
+  font-size: 24rpx;
+}

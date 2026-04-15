@@ -1,0 +1,63 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state-text">加载中...</view>
+  <view wx:elif="{{error}}" class="state-text">{{error}}</view>
+
+  <view wx:elif="{{currentSentence}}" class="content">
+    <view class="card-stage">
+      <swiper
+        class="card-swiper"
+        current="{{swiperCurrent}}"
+        duration="320"
+        easing-function="easeOutCubic"
+        skip-hidden-item-layout="{{true}}"
+        bindchange="onSwiperChange"
+      >
+        <swiper-item wx:for="{{sentences}}" wx:key="_id">
+          <view class="card-slide">
+            <view class="card-shell" bindtap="onTapImage" data-index="{{index}}">
+              <image class="card-bg" src="{{item.imageUrl}}" mode="aspectFill" />
+              <view class="card-overlay"></view>
+              <view class="top-actions">
+                <view class="icon-btn" wx:if="{{currentIndex === index}}" catchtap="onPlaySentenceAudio">播</view>
+                <view class="icon-btn {{currentSentence.favorited ? 'active' : ''}}" wx:if="{{currentIndex === index}}" catchtap="onToggleFavorited">
+                  {{currentSentence.favorited ? '藏' : '☆'}}
+                </view>
+              </view>
+
+              <view class="card-bottom" catchtap="noop">
+                <view class="card-bottom-mask"></view>
+                <view class="card-bottom-content">
+                  <text class="progress">{{(index + 1) < 10 ? '0' + (index + 1) : (index + 1)}}/{{sentences.length}}</text>
+                  <view class="sentence-line">
+                    <block wx:for="{{item.englishTokens}}" wx:key="index">
+                      <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
+                      <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
+                    </block>
+                  </view>
+                  <view wx:if="{{item.showChinese}}" class="chinese-line">{{item.chinese}}</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+
+    <view class="bottom-actions">
+      <view class="nav-btn" bindtap="goPrev">‹</view>
+      <view class="master-btn {{currentSentence.mastered ? 'mastered' : ''}}" bindtap="onToggleMastered">
+        {{currentSentence.mastered ? '已掌握' : '未掌握'}}
+      </view>
+      <view class="nav-btn" bindtap="goNext">›</view>
+    </view>
+  </view>
+
+  <word-modal
+    visible="{{wordModalVisible}}"
+    loading="{{wordModalLoading}}"
+    error="{{wordModalError}}"
+    detail="{{wordDetail}}"
+    bind:close="onCloseWordModal"
+    bind:playaudio="onPlayWordAudio"
+  />
+</view>
