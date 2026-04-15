@@ -33,7 +33,8 @@ function normalizeSentence(item, fallbackOrder) {
   const order = item.order || fallbackOrder;
   const imagePool = Array.isArray(cardImagePool) ? cardImagePool : [];
   const fallbackImageUrl = imagePool.length
-    ? imagePool[(Math.max(1, Number(order) || fallbackOrder) - 1) % imagePool.length]
+    && Math.max(1, Number(order) || fallbackOrder) <= imagePool.length
+    ? imagePool[Math.max(1, Number(order) || fallbackOrder) - 1]
     : "";
   return {
     _id: item._id || item.id || `local-${fallbackOrder}`,
@@ -47,19 +48,17 @@ function normalizeSentence(item, fallbackOrder) {
   };
 }
 
-// 图片URL缓存
-const IMAGE_URL_CACHE_KEY = "image_url_cache_v2";
-const IMAGE_URL_TTL = 6 * 60 * 60 * 1000;
+const IMAGE_FILE_CACHE_KEY = "image_file_cache_v1";
 
-function getImageUrlCache() {
-  return wx.getStorageSync(IMAGE_URL_CACHE_KEY) || {};
+function getImageFileCache() {
+  return wx.getStorageSync(IMAGE_FILE_CACHE_KEY) || {};
 }
 
-function setImageUrlCache(cache) {
-  wx.setStorageSync(IMAGE_URL_CACHE_KEY, cache);
+function setImageFileCache(cache) {
+  wx.setStorageSync(IMAGE_FILE_CACHE_KEY, cache);
 }
 
-function getCachedImageUrl(cache, fileId) {
+function getCachedLocalImagePath(cache, fileId) {
   const value = cache[fileId];
   if (!value) {
     return "";
@@ -67,195 +66,113 @@ function getCachedImageUrl(cache, fileId) {
   if (typeof value === "string") {
     return value;
   }
-  if (!value.url) {
-    return "";
-  }
-  if (value.expiresAt && value.expiresAt < Date.now()) {
-    return "";
-  }
-  return value.url;
+  return value.localPath || "";
 }
 
-function setCachedImageUrl(cache, fileId, url) {
-  if (!fileId || !url) {
-    return cache;
-  }
+function setCachedLocalImagePath(cache, fileId, localPath) {
   return {
     ...cache,
     [fileId]: {
-      url,
-      expiresAt: Date.now() + IMAGE_URL_TTL,
+      localPath,
+      updatedAt: Date.now(),
     },
   };
 }
 
-// 批量获取图片临时URL的最大数量
-const MAX_BATCH_SIZE = 50;
+function saveFileToLocal(tempFilePath) {
+  return new Promise((resolve, reject) => {
+    wx.saveFile({
+      tempFilePath,
+      success: (res) => resolve(res.savedFilePath || tempFilePath),
+      fail: reject,
+    });
+  });
+}
 
-// 预加载图片的数量
-// 懒加载图片URL
 async function lazyLoadImageUrl(cloudFileId) {
   if (!cloudFileId || !cloudFileId.startsWith("cloud://")) {
-    return cloudFileId;
+    return "";
+  }
+  if (!hasCloudEnv()) {
+    return "";
   }
 
-  // 检查缓存
-  const imageUrlCache = getImageUrlCache();
-  const cachedUrl = getCachedImageUrl(imageUrlCache, cloudFileId);
-  if (cachedUrl) {
-    return cachedUrl;
+  const imageFileCache = getImageFileCache();
+  const cachedLocalPath = getCachedLocalImagePath(imageFileCache, cloudFileId);
+  if (cachedLocalPath) {
+    return cachedLocalPath;
   }
 
-  // 获取临时URL
   try {
-    const res = await wx.cloud.getTempFileURL({
-      fileList: [cloudFileId],
+    const res = await wx.cloud.downloadFile({
+      fileID: cloudFileId,
     });
-    const list = res.fileList || [];
-    if (list.length > 0 && list[0].tempFileURL) {
-      const tempUrl = list[0].tempFileURL;
-      // 更新缓存
-      const newCache = setCachedImageUrl(imageUrlCache, cloudFileId, tempUrl);
-      setImageUrlCache(newCache);
-      return tempUrl;
+    const tempFilePath = res.tempFilePath || "";
+    if (tempFilePath) {
+      let localPath = tempFilePath;
+      try {
+        localPath = await saveFileToLocal(tempFilePath);
+      } catch (saveErr) {
+        localPath = tempFilePath;
+      }
+      const nextCache = setCachedLocalImagePath(imageFileCache, cloudFileId, localPath);
+      setImageFileCache(nextCache);
+      return localPath;
     }
   } catch (err) {
     console.error("[sentence-repo] lazyLoadImageUrl failed", err);
   }
 
-  return cloudFileId;
+  return "";
 }
 
-// 预加载图片URL
 async function preloadImageUrls(cloudFileIds = []) {
   if (!cloudFileIds.length) {
     return;
   }
 
-  // 检查缓存，只预加载未缓存的
-  const imageUrlCache = getImageUrlCache();
-  const needPreload = cloudFileIds.filter((id) => !getCachedImageUrl(imageUrlCache, id));
+  const imageFileCache = getImageFileCache();
+  const dedupedIds = Array.from(new Set(cloudFileIds));
+  const needPreload = dedupedIds.filter((id) => !getCachedLocalImagePath(imageFileCache, id));
 
   if (!needPreload.length) {
     return;
   }
 
-  // 分块预加载
-  const chunkSize = MAX_BATCH_SIZE;
-  for (let i = 0; i < needPreload.length; i += chunkSize) {
-    const chunk = needPreload.slice(i, i + chunkSize);
-    try {
-      const res = await wx.cloud.getTempFileURL({
-        fileList: chunk,
-      });
-      const list = res.fileList || [];
-      let newCache = { ...imageUrlCache };
-      for (const item of list) {
-        if (item.fileID && item.tempFileURL) {
-          newCache = setCachedImageUrl(newCache, item.fileID, item.tempFileURL);
-        }
-      }
-      setImageUrlCache(newCache);
-    } catch (err) {
-      console.error("[sentence-repo] preloadImageUrls failed", err);
-    }
+  for (let i = 0; i < needPreload.length; i += 1) {
+    await lazyLoadImageUrl(needPreload[i]);
   }
 }
 
-// 解析图片URL（支持懒加载）
 function resolveImageUrl(sentence) {
-  const imageUrlCache = getImageUrlCache();
-  return getCachedImageUrl(imageUrlCache, sentence.imageUrl) || sentence.imageUrl;
+  const imageFileCache = getImageFileCache();
+  return getCachedLocalImagePath(imageFileCache, sentence.imageUrl) || "";
 }
 
-// 批量解析图片URL（用于初始加载）
 async function resolveCloudImageUrls(sentences = []) {
-  if (!hasCloudEnv() || !Array.isArray(sentences) || !sentences.length) {
-    return sentences;
+  if (!Array.isArray(sentences) || !sentences.length) {
+    return [];
   }
 
   try {
-    // 获取现有缓存
-    const imageUrlCache = getImageUrlCache();
-    const cloudFileIds = [];
-    const fileUrlMap = {};
+    const cloudFileIds = sentences
+      .map((item) => item.imageUrl)
+      .filter((url) => typeof url === "string" && url.startsWith("cloud://"));
 
-    // 收集需要获取临时URL的cloudFileID
-    sentences.forEach((item) => {
-      const url = item.imageUrl;
-      const cachedUrl = getCachedImageUrl(imageUrlCache, url);
-      if (cachedUrl) {
-        fileUrlMap[url] = cachedUrl;
-        return;
-      }
-      if (typeof url === "string" && url.startsWith("cloud://") && !fileUrlMap[url]) {
-        cloudFileIds.push(url);
-      }
-    });
-
-    const toResolvedSentences = () => {
-      const fallbackPool = Array.from(
-        new Set(
-          Object.values(fileUrlMap).filter(
-            (url) => typeof url === "string" && url && !url.startsWith("cloud://")
-          )
-        )
-      );
-      return sentences.map((sentence, index) => {
-        const directUrl = fileUrlMap[sentence.imageUrl];
-        if (directUrl) {
-          return {
-            ...sentence,
-            imageUrl: directUrl,
-          };
-        }
-        if (fallbackPool.length) {
-          const order = Number(sentence.order) || index + 1;
-          const fallbackUrl = fallbackPool[(Math.max(1, order) - 1) % fallbackPool.length];
-          return {
-            ...sentence,
-            imageUrl: fallbackUrl,
-          };
-        }
-        return sentence;
-      });
-    };
-
-    if (!cloudFileIds.length) {
-      // 所有图片URL都已缓存，直接返回（并对缺失项做兜底）
-      return toResolvedSentences();
+    if (cloudFileIds.length) {
+      await preloadImageUrls(cloudFileIds);
     }
 
-    // 分块获取临时URL；单批失败不回滚整页图片解析
-    for (let i = 0; i < cloudFileIds.length; i += MAX_BATCH_SIZE) {
-      const chunk = cloudFileIds.slice(i, i + MAX_BATCH_SIZE);
-      try {
-        const res = await wx.cloud.getTempFileURL({
-          fileList: chunk,
-        });
-        const list = res.fileList || [];
-        for (let j = 0; j < list.length; j += 1) {
-          const item = list[j];
-          if (item.fileID && item.tempFileURL) {
-            fileUrlMap[item.fileID] = item.tempFileURL;
-          }
-        }
-      } catch (err) {
-        console.error("[sentence-repo] resolve chunk failed", err);
-      }
-    }
-
-    // 更新缓存
-    let nextCache = { ...imageUrlCache };
-    Object.keys(fileUrlMap).forEach((fileId) => {
-      nextCache = setCachedImageUrl(nextCache, fileId, fileUrlMap[fileId]);
-    });
-    setImageUrlCache(nextCache);
-
-    return toResolvedSentences();
+    return sentences.map((sentence) => ({
+      ...sentence,
+      imageUrl: resolveImageUrl(sentence),
+    }));
   } catch (err) {
     console.error("[sentence-repo] resolveCloudImageUrls failed", err);
-    return sentences;
+    return sentences.map((sentence) => ({
+      ...sentence,
+      imageUrl: resolveImageUrl(sentence),
+    }));
   }
 }
 
@@ -495,8 +412,20 @@ async function fetchWordsFromCloud() {
 }
 
 function clearSentenceCache() {
+  const imageFileCache = getImageFileCache();
+  Object.keys(imageFileCache).forEach((fileId) => {
+    const localPath = getCachedLocalImagePath(imageFileCache, fileId);
+    if (!localPath) {
+      return;
+    }
+    wx.removeSavedFile({
+      filePath: localPath,
+      fail: () => {},
+    });
+  });
   wx.removeStorageSync(SENTENCE_CACHE_KEY);
-  wx.removeStorageSync(IMAGE_URL_CACHE_KEY);
+  wx.removeStorageSync(IMAGE_FILE_CACHE_KEY);
+  wx.removeStorageSync("image_url_cache_v2");
 }
 
 module.exports = {

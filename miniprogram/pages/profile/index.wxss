@@ -95,7 +95,7 @@
 }
 
 .section-title {
-  margin-top: 12rpx;
+  margin-top: 20rpx;
   padding: 6rpx 4rpx 0;
   font-size: 32rpx;
   font-weight: 700;
@@ -134,14 +134,8 @@
 }
 
 .more-arrow {
-  font-size: 28rpx;
-  color: #a2a2a2;
-  line-height: 1;
-}
-
-.more-arrow image {
-  width: 16rpx;
-  height: 16rpx;
+  width: 48rpx;
+  height: 48rpx;
   object-fit: contain;
 }
 

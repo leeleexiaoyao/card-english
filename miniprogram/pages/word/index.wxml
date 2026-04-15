@@ -1,23 +1,54 @@
 <view class="page">
+  <view class="search-bar">
+    <input
+      class="search-input"
+      type="text"
+      value="{{keyword}}"
+      placeholder="搜索英文、音标或中文释义"
+      confirm-type="search"
+      bindinput="onSearchInput"
+      bindconfirm="onSearchConfirm"
+    />
+    <view wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">清空</view>
+  </view>
+
   <view wx:if="{{loading}}" class="state-text">加载中...</view>
   <view wx:elif="{{error}}" class="state-text">{{error}}</view>
 
   <view wx:else class="list">
-    <view wx:if="{{!visibleWords.length}}" class="state-text">暂无单词</view>
-
-    <view wx:for="{{visibleWords}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
-      <view class="word-main">
-        <view class="word-line">
-          <view class="word-text">{{item.word}}</view>
-          <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
-          <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
+    <view wx:if="{{keyword && searching}}" class="state-text">搜索中...</view>
+    <block wx:elif="{{keyword}}">
+      <view wx:if="{{!searchResults.length}}" class="state-text">没有找到相关单词</view>
+      <view wx:for="{{searchResults}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
+        <view class="word-main">
+          <view class="word-line">
+            <view class="word-text">{{item.word}}</view>
+            <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
+            <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
+          </view>
+          <view class="translation-text">{{item.chineseMeaning}}</view>
         </view>
-        <view class="translation-text">{{item.chineseMeaning}}</view>
+        <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
       </view>
-      <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
-    </view>
+    </block>
 
-    <view wx:if="{{hasMore && !loadingMore}}" class="load-more" bindtap="appendMoreWords">加载更多</view>
-    <view wx:if="{{loadingMore}}" class="load-more">加载中...</view>
+    <block wx:else>
+      <view wx:if="{{!visibleWords.length}}" class="state-text">暂无单词</view>
+
+      <view wx:for="{{visibleWords}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
+        <view class="word-main">
+          <view class="word-line">
+            <view class="word-text">{{item.word}}</view>
+            <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
+            <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
+          </view>
+          <view class="translation-text">{{item.chineseMeaning}}</view>
+        </view>
+        <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
+      </view>
+
+      <view wx:if="{{hasMore && !loadingMore}}" class="load-more" bindtap="appendMoreWords">加载更多</view>
+      <view wx:if="{{loadingMore}}" class="load-more">加载中...</view>
+    </block>
   </view>
 </view>

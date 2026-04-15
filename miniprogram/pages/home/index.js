@@ -14,6 +14,8 @@ const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
 const { getSentenceTtsPath } = require("../../utils/tts");
 
+const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
+
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
   if (message.includes("url not in domain list") || message.includes("request:fail url not in domain list")) {
@@ -39,6 +41,7 @@ Page({
     currentIndex: 0,
     swiperCurrent: 0,
     currentSentence: null,
+    imageHintDismissed: Boolean(wx.getStorageSync(HOME_IMAGE_HINT_DISMISSED_KEY)),
     settings: getSettings(),
     wordModalVisible: false,
     wordModalLoading: false,
@@ -239,12 +242,8 @@ Page({
         return;
       }
       lazyLoadImageUrl(sentence.imageUrl)
-        .then((tempUrl) => {
-          let resolvedUrl = tempUrl;
-          if (!resolvedUrl || resolvedUrl.startsWith("cloud://")) {
-            resolvedUrl = this.getFallbackResolvedImageUrl(targetIndex);
-          }
-          if (!resolvedUrl || resolvedUrl === sentence.resolvedImageUrl) {
+        .then((localPath) => {
+          if (!localPath || localPath === sentence.resolvedImageUrl) {
             return;
           }
           const list = this.data.sentences.slice();
@@ -253,7 +252,7 @@ Page({
           }
           list[targetIndex] = {
             ...list[targetIndex],
-            resolvedImageUrl: resolvedUrl,
+            resolvedImageUrl: localPath,
           };
           const patch = {
             sentences: list,
@@ -265,23 +264,6 @@ Page({
         })
         .catch(() => {});
     });
-  },
-
-  getFallbackResolvedImageUrl(targetIndex) {
-    const pool = [];
-    this.data.sentences.forEach((item) => {
-      const url = item && item.resolvedImageUrl;
-      if (!url || url.startsWith("cloud://")) {
-        return;
-      }
-      if (pool.indexOf(url) < 0) {
-        pool.push(url);
-      }
-    });
-    if (!pool.length) {
-      return "";
-    }
-    return pool[targetIndex % pool.length];
   },
 
   // 图片加载完成回调
@@ -334,6 +316,12 @@ Page({
       return;
     }
     const sentence = this.data.sentences[targetIndex];
+    if (!this.data.imageHintDismissed) {
+      wx.setStorageSync(HOME_IMAGE_HINT_DISMISSED_KEY, true);
+      this.setData({
+        imageHintDismissed: true,
+      });
+    }
     this.updateSentenceAtIndex(targetIndex, {
       showChinese: !sentence.showChinese,
     });

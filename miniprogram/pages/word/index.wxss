@@ -5,6 +5,29 @@
   box-sizing: border-box;
 }
 
+.search-bar {
+  margin-bottom: 18rpx;
+  padding: 14rpx 18rpx;
+  background: #ffffff;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  color: #202020;
+}
+
+.search-clear {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #3f63ff;
+}
+
 .state-text {
   margin-top: 240rpx;
   text-align: center;

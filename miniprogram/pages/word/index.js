@@ -4,15 +4,21 @@ const {
   fetchWordBatch,
   getWordPreview,
   WORD_DEFAULT_PAGE_SIZE,
+  searchWords,
 } = require("../../utils/word-cloud");
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 Page({
   data: {
     loading: true,
     loadingMore: false,
+    searching: false,
     error: "",
     settings: getSettings(),
+    keyword: "",
     visibleWords: [],
+    searchResults: [],
     page: 0,
     pageSize: WORD_DEFAULT_PAGE_SIZE,
     hasMore: true,
@@ -20,6 +26,8 @@ Page({
 
   onLoad() {
     this.audioContext = this.createAudioContext();
+    this.searchTimer = null;
+    this.searchRequestId = 0;
     this.loadWords();
   },
 
@@ -30,18 +38,26 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadWords({
-      forceRefresh: true,
-    }).finally(() => {
+    const task = this.isSearchMode()
+      ? this.executeSearch(String(this.data.keyword || "").trim())
+      : this.loadWords({
+          forceRefresh: true,
+        });
+
+    Promise.resolve(task).finally(() => {
       wx.stopPullDownRefresh();
     });
   },
 
   onReachBottom() {
+    if (this.isSearchMode()) {
+      return;
+    }
     this.appendMoreWords();
   },
 
   onUnload() {
+    this.clearSearchTimer();
     if (this.audioContext) {
       this.audioContext.destroy();
       this.audioContext = null;
@@ -52,6 +68,17 @@ Page({
     const audioContext = wx.createInnerAudioContext();
     audioContext.obeyMuteSwitch = false;
     return audioContext;
+  },
+
+  clearSearchTimer() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+  },
+
+  isSearchMode() {
+    return Boolean(String(this.data.keyword || "").trim());
   },
 
   async loadWords(options = {}) {
@@ -121,6 +148,93 @@ Page({
     } finally {
       this.setData({
         loadingMore: false,
+      });
+    }
+  },
+
+  onSearchInput(e) {
+    const keyword = String((e.detail && e.detail.value) || "");
+    this.setData({
+      keyword,
+    });
+
+    const normalizedKeyword = keyword.trim();
+    this.clearSearchTimer();
+
+    if (!normalizedKeyword) {
+      this.searchRequestId += 1;
+      this.setData({
+        searching: false,
+        error: "",
+        searchResults: [],
+      });
+      return;
+    }
+
+    this.searchTimer = setTimeout(() => {
+      this.executeSearch(normalizedKeyword);
+    }, SEARCH_DEBOUNCE_MS);
+  },
+
+  onSearchConfirm(e) {
+    const keyword = String((e.detail && e.detail.value) || this.data.keyword || "").trim();
+    this.clearSearchTimer();
+
+    if (!keyword) {
+      this.setData({
+        keyword: "",
+        searching: false,
+        error: "",
+        searchResults: [],
+      });
+      return;
+    }
+
+    this.executeSearch(keyword);
+  },
+
+  onClearSearch() {
+    this.clearSearchTimer();
+    this.searchRequestId += 1;
+    this.setData({
+      keyword: "",
+      searching: false,
+      error: "",
+      searchResults: [],
+    });
+  },
+
+  async executeSearch(keyword) {
+    const requestId = this.searchRequestId + 1;
+    this.searchRequestId = requestId;
+
+    this.setData({
+      searching: true,
+      error: "",
+    });
+
+    try {
+      const result = await searchWords(keyword);
+      if (requestId !== this.searchRequestId) {
+        return;
+      }
+      this.setData({
+        searchResults: result.list,
+      });
+    } catch (err) {
+      if (requestId !== this.searchRequestId) {
+        return;
+      }
+      this.setData({
+        searchResults: [],
+        error: "搜索失败，请稍后再试",
+      });
+    } finally {
+      if (requestId !== this.searchRequestId) {
+        return;
+      }
+      this.setData({
+        searching: false,
       });
     }
   },

@@ -25,19 +25,15 @@
 
               <view class="card-bottom" catchtap="noop">
                 <view class="card-bottom-mask"></view>
-                <view class="card-bottom-content">
-                  <view class="top-content" style="transform: translateY({{item.showChinese ? '0' : '20rpx'}}); transition: transform 0.3s ease-in-out;">
-                    <text class="progress">{{(index + 1) < 10 ? '0' + (index + 1) : (index + 1)}}/{{counts.total}}</text>
-                    <view class="sentence-line">
-                      <block wx:for="{{item.englishTokens}}" wx:key="index">
-                        <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
-                        <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
-                      </block>
-                    </view>
+                <view class="card-bottom-content {{item.showChinese ? 'content-expanded' : 'content-collapsed'}}">
+                  <text class="progress">{{(index + 1) < 10 ? '0' + (index + 1) : (index + 1)}}/{{counts.total}}</text>
+                  <view class="sentence-line">
+                    <block wx:for="{{item.englishTokens}}" wx:key="index">
+                      <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
+                      <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
+                    </block>
                   </view>
-                  <view class="chinese-line-container" style="height: {{item.showChinese ? 'auto' : '0'}}; opacity: {{item.showChinese ? '1' : '0'}}; transform: translateY({{item.showChinese ? '0' : '20rpx'}});">
-                    <view wx:if="{{item.showChinese}}" class="chinese-line">{{item.chinese}}</view>
-                  </view>
+                  <view class="chinese-line">{{item.chinese}}</view>
                 </view>
               </view>
             </view>
@@ -47,12 +43,18 @@
     </view>
 
     <view class="bottom-actions">
-      <image class="nav-btn" src="/assets/icon/icon_previous.svg" bindtap="goPrev" />
+      <view class="nav-btn {{currentIndex === 0 ? 'nav-btn-disabled' : ''}}" bindtap="goPrev">
+        <image class="nav-icon" src="/assets/icon/icon_previous.svg" />
+      </view>
       <view class="master-btn {{currentSentence.mastered ? 'mastered' : ''}}" bindtap="onToggleMastered">
         {{currentSentence.mastered ? '已掌握' : '未掌握'}}
       </view>
-      <image class="nav-btn" src="/assets/icon/icon_next.svg" bindtap="goNext" />
+      <view class="nav-btn {{currentIndex === sentences.length - 1 ? 'nav-btn-disabled' : ''}}" bindtap="goNext">
+        <image class="nav-icon" src="/assets/icon/icon_next.svg" />
+      </view>
     </view>
+
+    <view wx:if="{{!imageHintDismissed}}" class="image-hint">提示：点击图片可查看释义</view>
   </view>
 
   <word-modal

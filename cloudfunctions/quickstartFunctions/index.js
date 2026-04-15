@@ -7,6 +7,7 @@ const db = cloud.database();
 const WORD_COLLECTION = "words";
 const WORD_QUERY_CHUNK = 100;
 const WORD_MAX_LIMIT = 200;
+const WORD_SEARCH_LIMIT = 50;
 
 function normalizeWordRecord(item = {}) {
   return {
@@ -33,6 +34,84 @@ async function fetchWordListChunk({ skip = 0, limit = WORD_QUERY_CHUNK }) {
     .collection(WORD_COLLECTION)
     .orderBy("word", "asc")
     .skip(Math.max(Number(skip) || 0, 0))
+    .limit(safeLimit)
+    .field({
+      word: true,
+      phonetic: true,
+      translation: true,
+      pos: true,
+      audio: true,
+      collins: true,
+      oxford: true,
+      bnc: true,
+      frq: true,
+    })
+    .get();
+  return (res.data || []).map(normalizeWordRecord);
+}
+
+function escapeRegExp(source = "") {
+  return String(source || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeSearchKeyword(keyword = "") {
+  return String(keyword || "").trim().toLowerCase();
+}
+
+function isAsciiKeyword(keyword = "") {
+  return /[a-z]/i.test(keyword) && !/[\u4e00-\u9fa5]/.test(keyword);
+}
+
+function scoreWordMatch(item = {}, keyword = "") {
+  const word = String(item.word || "").toLowerCase();
+  const phonetic = String(item.phonetic || "").toLowerCase();
+  const translation = String(item.translation || "").toLowerCase();
+
+  if (word === keyword) {
+    return 4000;
+  }
+  if (word.indexOf(keyword) === 0) {
+    return 3000;
+  }
+  if (phonetic.indexOf(keyword) >= 0) {
+    return 2000;
+  }
+  if (word.indexOf(keyword) >= 0) {
+    return 1000;
+  }
+  if (translation.indexOf(keyword) >= 0) {
+    return 500;
+  }
+  return 0;
+}
+
+function sortWordMatches(list = [], keyword = "") {
+  return list.sort((a, b) => {
+    const scoreDiff = scoreWordMatch(b, keyword) - scoreWordMatch(a, keyword);
+    if (scoreDiff !== 0) {
+      return scoreDiff;
+    }
+    const frqDiff = Number(b.frq || 0) - Number(a.frq || 0);
+    if (frqDiff !== 0) {
+      return frqDiff;
+    }
+    const bncDiff = Number(b.bnc || 0) - Number(a.bnc || 0);
+    if (bncDiff !== 0) {
+      return bncDiff;
+    }
+    const collinsDiff = Number(b.collins || 0) - Number(a.collins || 0);
+    if (collinsDiff !== 0) {
+      return collinsDiff;
+    }
+    return String(a.word || "").localeCompare(String(b.word || ""));
+  });
+}
+
+async function queryWordSearch(where, limit = WORD_SEARCH_LIMIT) {
+  const safeLimit = Math.min(Math.max(Number(limit) || WORD_SEARCH_LIMIT, 1), WORD_SEARCH_LIMIT);
+  const res = await db
+    .collection(WORD_COLLECTION)
+    .where(where)
     .limit(safeLimit)
     .field({
       word: true,
@@ -76,6 +155,72 @@ const listWords = async (event) => {
     limit,
     hasMore: list.length > limit,
     list: list.slice(0, limit),
+  };
+};
+
+const searchWords = async (event) => {
+  const keyword = normalizeSearchKeyword(event.keyword);
+  const limit = Math.min(Math.max(Number(event.limit) || WORD_SEARCH_LIMIT, 1), WORD_SEARCH_LIMIT);
+
+  if (!keyword) {
+    return {
+      success: true,
+      keyword,
+      list: [],
+    };
+  }
+
+  const escapedKeyword = escapeRegExp(keyword);
+  const results = [];
+  const seen = new Set();
+  const pushUnique = (items = []) => {
+    items.forEach((item) => {
+      if (!item || !item._id || seen.has(item._id)) {
+        return;
+      }
+      seen.add(item._id);
+      results.push(item);
+    });
+  };
+
+  if (isAsciiKeyword(keyword)) {
+    const [prefixMatches, phoneticMatches, containsMatches] = await Promise.all([
+      queryWordSearch({
+        word: db.RegExp({
+          regexp: `^${escapedKeyword}`,
+          options: "i",
+        }),
+      }, limit),
+      queryWordSearch({
+        phonetic: db.RegExp({
+          regexp: escapedKeyword,
+          options: "i",
+        }),
+      }, Math.min(limit, 20)),
+      queryWordSearch({
+        word: db.RegExp({
+          regexp: escapedKeyword,
+          options: "i",
+        }),
+      }, limit),
+    ]);
+    pushUnique(prefixMatches);
+    pushUnique(phoneticMatches);
+    pushUnique(containsMatches);
+  } else {
+    const translationMatches = await queryWordSearch({
+      translation: db.RegExp({
+        regexp: escapedKeyword,
+        options: "i",
+      }),
+    }, limit);
+    pushUnique(translationMatches);
+  }
+
+  return {
+    success: true,
+    keyword,
+    list: sortWordMatches(results, keyword).slice(0, limit),
   };
 };
 
@@ -293,6 +438,8 @@ exports.main = async (event, context) => {
       return await getOpenId();
     case "listWords":
       return await listWords(event);
+    case "searchWords":
+      return await searchWords(event);
     case "getWordDetail":
       return await getWordDetail(event);
     case "getMiniProgramCode":

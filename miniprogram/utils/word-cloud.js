@@ -4,6 +4,7 @@ const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v1_";
 const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v2";
 const WORD_DEFAULT_PAGE_SIZE = 200;
 const WORD_MAX_PAGE_SIZE = 200;
+const WORD_SEARCH_LIMIT = 50;
 const WORD_FUNCTION_NAME = "quickstartFunctions";
 
 function hasCloudEnv() {
@@ -212,6 +213,32 @@ async function fetchWordBatch(options = {}) {
   return payload;
 }
 
+async function searchWords(keyword, options = {}) {
+  const normalizedKeyword = String(keyword || "").trim();
+  if (!normalizedKeyword) {
+    return {
+      keyword: "",
+      list: [],
+    };
+  }
+
+  const limit = Math.min(Math.max(Number(options.limit) || WORD_SEARCH_LIMIT, 1), WORD_SEARCH_LIMIT);
+  const result = await callWordFunction({
+    type: "searchWords",
+    keyword: normalizedKeyword,
+    limit,
+  });
+
+  if (!result.success) {
+    throw new Error(result.errMsg || "搜索单词失败");
+  }
+
+  return {
+    keyword: result.keyword || normalizedKeyword.toLowerCase(),
+    list: (result.list || []).map(normalizeListItem),
+  };
+}
+
 async function getWordDetail(rawWord, options = {}) {
   const word = String(rawWord || "").trim();
   const forceRefresh = Boolean(options.forceRefresh);
@@ -258,4 +285,5 @@ module.exports = {
   fetchWordBatch,
   getWordDetail,
   getWordPreview,
+  searchWords,
 };
