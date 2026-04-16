@@ -5,10 +5,15 @@ Page({
 
   onShow() {
     const app = getApp();
-    if (app && app.globalData && app.globalData.authEnabled && app.globalData.user && app.globalData.user.openid) {
-      wx.switchTab({
-        url: "/pages/home/index",
-      });
+    if (app && typeof app.isAuthenticated === "function" && app.isAuthenticated()) {
+      app.returnToAuthSource();
+    }
+  },
+
+  onBackTap() {
+    const app = getApp();
+    if (app && typeof app.returnToAuthSource === "function") {
+      app.returnToAuthSource();
     }
   },
 
@@ -29,9 +34,7 @@ Page({
       Promise.resolve()
         .then(() => app.beginLogin())
         .then(() => {
-          wx.switchTab({
-            url: "/pages/home/index",
-          });
+          app.returnToAuthSource();
         })
         .catch((err) => {
           console.error("[auth] login failed", err);
@@ -54,9 +57,7 @@ Page({
       success: async (res) => {
         try {
           await app.completeLoginWithUserProfile(res.userInfo || {});
-          wx.switchTab({
-            url: "/pages/home/index",
-          });
+          app.returnToAuthSource();
         } catch (err) {
           console.error("[auth] login failed", err);
           wx.showToast({

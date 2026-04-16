@@ -1,5 +1,6 @@
 const { getSettings } = require("../../utils/settings");
 const { getWordDetail } = require("../../utils/dictionary");
+const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 Page({
   data: {
@@ -11,7 +12,7 @@ Page({
   },
 
   onLoad(options) {
-    this.audioContext = this.createAudioContext();
+    this.audioOwner = createAudioOwner("word_detail");
     const word = decodeURIComponent(options.word || "");
     this.setData({
       word,
@@ -25,17 +26,12 @@ Page({
     });
   },
 
-  onUnload() {
-    if (this.audioContext) {
-      this.audioContext.destroy();
-      this.audioContext = null;
-    }
+  onHide() {
+    stopAudio(this.audioOwner);
   },
 
-  createAudioContext() {
-    const audioContext = wx.createInnerAudioContext();
-    audioContext.obeyMuteSwitch = false;
-    return audioContext;
+  onUnload() {
+    stopAudio(this.audioOwner);
   },
 
   async loadDetail(word) {
@@ -75,13 +71,11 @@ Page({
       });
       return;
     }
-    if (!this.audioContext) {
-      this.audioContext = this.createAudioContext();
-    }
-    this.audioContext.stop();
-    this.audioContext.src = detail.audio;
-    this.audioContext.playbackRate = Number(this.data.settings.playRate || 1);
-    this.audioContext.play();
+    playGlobalAudio({
+      src: detail.audio,
+      playbackRate: Number(this.data.settings.playRate || 1),
+      owner: this.audioOwner,
+    });
   },
 
   onTapRelatedCard(e) {

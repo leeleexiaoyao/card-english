@@ -863,6 +863,32 @@ function normalizeWordRecord(item = {}) {
   };
 }
 
+function isAffixWordEntry(item = {}) {
+  const word = String(item.word || "").trim();
+  const text = [
+    item.translation || "",
+    item.definition || "",
+    item.pos || "",
+  ].join(" ");
+
+  if (/^-[A-Za-z]+$/.test(word) || /^[A-Za-z]+-$/.test(word)) {
+    return true;
+  }
+
+  return /(suf\.|pref\.|suffix|prefix|后缀|前缀|词缀)/i.test(text);
+}
+
+function isHiddenWordEntry(item = {}) {
+  const word = String(item.word || "").trim();
+  if (!word) {
+    return true;
+  }
+  if (!/^[A-Za-z]/.test(word)) {
+    return true;
+  }
+  return isAffixWordEntry(item);
+}
+
 async function fetchWordListChunk({ skip = 0, limit = WORD_QUERY_CHUNK }) {
   const safeLimit = Math.min(Math.max(Number(limit) || WORD_QUERY_CHUNK, 1), WORD_QUERY_CHUNK);
   const res = await db
@@ -883,7 +909,11 @@ async function fetchWordListChunk({ skip = 0, limit = WORD_QUERY_CHUNK }) {
       frq: true,
     })
     .get();
-  return (res.data || []).map(normalizeWordRecord);
+  const rawList = (res.data || []).map(normalizeWordRecord);
+  return {
+    list: rawList.filter((item) => !isHiddenWordEntry(item)),
+    scanned: rawList.length,
+  };
 }
 
 function escapeRegExp(source = "") {
@@ -962,26 +992,40 @@ async function queryWordSearch(where, limit = WORD_SEARCH_LIMIT) {
       frq: true,
     })
     .get();
-  return (res.data || []).map(normalizeWordRecord);
+  return (res.data || [])
+    .map(normalizeWordRecord)
+    .filter((item) => !isHiddenWordEntry(item));
 }
 
 const listWords = async (event) => {
   const page = Math.max(Number(event.page) || 0, 0);
   const limit = Math.min(Math.max(Number(event.limit) || WORD_MAX_LIMIT, 1), WORD_MAX_LIMIT);
-  const skip = page * limit;
+  const visibleSkip = page * limit;
   const targetSize = limit + 1;
   const list = [];
-  let fetched = 0;
+  let skippedVisible = 0;
+  let scanned = 0;
 
-  while (fetched < targetSize) {
-    const currentLimit = Math.min(targetSize - fetched, WORD_QUERY_CHUNK);
-    const currentList = await fetchWordListChunk({
-      skip: skip + fetched,
+  while (list.length < targetSize) {
+    const currentLimit = WORD_QUERY_CHUNK;
+    const currentChunk = await fetchWordListChunk({
+      skip: scanned,
       limit: currentLimit,
     });
-    list.push(...currentList);
-    fetched += currentList.length;
-    if (currentList.length < currentLimit) {
+    const currentList = currentChunk.list || [];
+    if (skippedVisible < visibleSkip) {
+      const remainingSkip = visibleSkip - skippedVisible;
+      if (currentList.length <= remainingSkip) {
+        skippedVisible += currentList.length;
+      } else {
+        skippedVisible = visibleSkip;
+        list.push(...currentList.slice(remainingSkip));
+      }
+    } else {
+      list.push(...currentList);
+    }
+    scanned += currentChunk.scanned;
+    if (currentChunk.scanned < currentLimit) {
       break;
     }
   }
@@ -1057,7 +1101,7 @@ const searchWords = async (event) => {
   return {
     success: true,
     keyword,
-    list: sortWordMatches(results, keyword).slice(0, limit),
+    list: sortWordMatches(results.filter((item) => !isHiddenWordEntry(item)), keyword).slice(0, limit),
   };
 };
 
@@ -1095,7 +1139,7 @@ const getWordDetail = async (event) => {
 
   for (let i = 0; i < candidates.length; i += 1) {
     const record = await queryWordByExactValue(candidates[i]);
-    if (record) {
+    if (record && !isHiddenWordEntry(record)) {
       return {
         success: true,
         item: record,

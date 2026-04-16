@@ -6,6 +6,7 @@ const {
   WORD_DEFAULT_PAGE_SIZE,
   searchWords,
 } = require("../../utils/word-cloud");
+const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -25,7 +26,8 @@ Page({
   },
 
   onLoad() {
-    this.audioContext = this.createAudioContext();
+    this.audioOwner = createAudioOwner("word");
+    this.audioRequestId = 0;
     this.searchTimer = null;
     this.searchRequestId = 0;
     this.loadWords();
@@ -37,7 +39,22 @@ Page({
     });
   },
 
+  requireActionAuth() {
+    const app = getApp();
+    if (!app || typeof app.requireAuth !== "function") {
+      return true;
+    }
+    return app.requireAuth({
+      route: "pages/word/index",
+      isTab: true,
+    });
+  },
+
   onPullDownRefresh() {
+    if (!this.requireActionAuth()) {
+      wx.stopPullDownRefresh();
+      return;
+    }
     const task = this.isSearchMode()
       ? this.executeSearch(String(this.data.keyword || "").trim())
       : this.loadWords({
@@ -56,18 +73,15 @@ Page({
     this.appendMoreWords();
   },
 
-  onUnload() {
-    this.clearSearchTimer();
-    if (this.audioContext) {
-      this.audioContext.destroy();
-      this.audioContext = null;
-    }
+  onHide() {
+    this.audioRequestId += 1;
+    stopAudio(this.audioOwner);
   },
 
-  createAudioContext() {
-    const audioContext = wx.createInnerAudioContext();
-    audioContext.obeyMuteSwitch = false;
-    return audioContext;
+  onUnload() {
+    this.clearSearchTimer();
+    this.audioRequestId += 1;
+    stopAudio(this.audioOwner);
   },
 
   clearSearchTimer() {
@@ -120,6 +134,9 @@ Page({
   },
 
   async appendMoreWords() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { page, pageSize, hasMore, loadingMore, visibleWords } = this.data;
     if (!hasMore || loadingMore) {
       return;
@@ -153,6 +170,9 @@ Page({
   },
 
   onSearchInput(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const keyword = String((e.detail && e.detail.value) || "");
     this.setData({
       keyword,
@@ -177,6 +197,9 @@ Page({
   },
 
   onSearchConfirm(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const keyword = String((e.detail && e.detail.value) || this.data.keyword || "").trim();
     this.clearSearchTimer();
 
@@ -194,6 +217,9 @@ Page({
   },
 
   onClearSearch() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     this.clearSearchTimer();
     this.searchRequestId += 1;
     this.setData({
@@ -240,6 +266,9 @@ Page({
   },
 
   onTapWord(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { word } = e.currentTarget.dataset;
     if (!word) {
       return;
@@ -250,14 +279,25 @@ Page({
   },
 
   async onPlayAudio(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { audio, word } = e.currentTarget.dataset;
     let targetAudio = audio;
+    const requestId = this.audioRequestId + 1;
+    this.audioRequestId = requestId;
 
     if (!targetAudio && word) {
       try {
         const preview = await getWordPreview(word);
+        if (requestId !== this.audioRequestId) {
+          return;
+        }
         targetAudio = preview.audio;
       } catch (err) {
+        if (requestId !== this.audioRequestId) {
+          return;
+        }
         targetAudio = "";
       }
     }
@@ -270,16 +310,16 @@ Page({
       return;
     }
 
-    this.playAudio(targetAudio);
+    this.playAudio(targetAudio, requestId);
   },
 
-  playAudio(audioUrl) {
-    if (!this.audioContext) {
-      this.audioContext = this.createAudioContext();
-    }
-    this.audioContext.stop();
-    this.audioContext.src = audioUrl;
-    this.audioContext.playbackRate = Number(this.data.settings.playRate || 1);
-    this.audioContext.play();
+  playAudio(audioUrl, requestId) {
+    const activeRequestId = requestId || this.audioRequestId + 1;
+    this.audioRequestId = activeRequestId;
+    playGlobalAudio({
+      src: audioUrl,
+      playbackRate: Number(this.data.settings.playRate || 1),
+      owner: this.audioOwner,
+    });
   },
 });

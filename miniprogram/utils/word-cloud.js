@@ -2,8 +2,8 @@ const { sentenceBank } = require("../data/sentenceBank");
 const { cardImagePool } = require("../data/cardImagePool");
 const { guessWordForms, tokenizeSentence } = require("./word");
 
-const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v2_";
-const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v3";
+const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v5_";
+const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v6";
 const WORD_DEFAULT_PAGE_SIZE = 200;
 const WORD_MAX_PAGE_SIZE = 200;
 const WORD_SEARCH_LIMIT = 50;
@@ -79,6 +79,32 @@ function summarizeTranslation(raw = "") {
     return "暂无释义";
   }
   return firstLine.length > 96 ? `${firstLine.slice(0, 96)}...` : firstLine;
+}
+
+function isAffixWordEntry(item = {}) {
+  const word = String(item.word || "").trim();
+  const text = [
+    item.translation || "",
+    item.definition || "",
+    item.pos || "",
+  ].join(" ");
+
+  if (/^-[A-Za-z]+$/.test(word) || /^[A-Za-z]+-$/.test(word)) {
+    return true;
+  }
+
+  return /(suf\.|pref\.|suffix|prefix|后缀|前缀|词缀)/i.test(text);
+}
+
+function isHiddenWordEntry(item = {}) {
+  const word = String(item.word || "").trim();
+  if (!word) {
+    return true;
+  }
+  if (!/^[A-Za-z]/.test(word)) {
+    return true;
+  }
+  return isAffixWordEntry(item);
 }
 
 function parsePosList(raw = "") {
@@ -268,7 +294,7 @@ async function fetchWordBatch(options = {}) {
     page,
     pageSize,
     hasMore: Boolean(result.hasMore),
-    list,
+    list: list.filter((item) => !isHiddenWordEntry(item)),
   };
 
   wx.setStorageSync(cacheKey, payload);
@@ -297,7 +323,9 @@ async function searchWords(keyword, options = {}) {
 
   return {
     keyword: result.keyword || normalizedKeyword.toLowerCase(),
-    list: (result.list || []).map(normalizeListItem),
+    list: (result.list || [])
+      .map(normalizeListItem)
+      .filter((item) => !isHiddenWordEntry(item)),
   };
 }
 
@@ -321,6 +349,10 @@ async function getWordDetail(rawWord, options = {}) {
 
   if (!result.success || !result.item) {
     throw new Error(result.errMsg || "获取单词详情失败");
+  }
+
+  if (isHiddenWordEntry(result.item)) {
+    throw new Error("该条目已隐藏");
   }
 
   const detail = normalizeDetail(result.item);

@@ -11,6 +11,7 @@
 }
 
 .panel {
+  position: relative;
   width: 100%;
   padding: 56rpx 36rpx;
   border-radius: 32rpx;
@@ -19,6 +20,14 @@
   display: flex;
   flex-direction: column;
   gap: 20rpx;
+}
+
+.back-btn {
+  align-self: flex-start;
+  padding: 8rpx 0;
+  color: #0f172a;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
 .badge {

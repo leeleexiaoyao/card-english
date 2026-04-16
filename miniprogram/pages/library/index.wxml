@@ -64,7 +64,9 @@
           </block>
         </view>
 
-        <view wx:if="{{displayOptions.chinese}}" class="line chinese-line">{{item.chinese}}</view>
+        <view wx:if="{{displayOptions.chinese && item.chinese}}" class="line chinese-line">
+          <text class="chinese-text" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">{{item.chinese}}</text>
+        </view>
       </view>
 
       <view class="audio-btn" catchtap="onPlayAudio" data-id="{{item._id}}">播</view>

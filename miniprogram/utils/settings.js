@@ -2,6 +2,7 @@ const SETTINGS_KEY = "user_settings_v1";
 
 const DEFAULT_SETTINGS = {
   autoPlayAudio: false,
+  speakChinese: false,
   defaultShowChinese: false,
   playRate: 1,
   voiceGender: "female",

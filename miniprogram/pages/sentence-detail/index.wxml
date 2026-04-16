@@ -34,7 +34,9 @@
                       <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
                     </block>
                   </view>
-                  <view wx:if="{{item.showChinese}}" class="chinese-line">{{item.chinese}}</view>
+                  <view wx:if="{{item.showChinese && item.chinese}}" class="chinese-line">
+                    <text class="chinese-text" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">{{item.chinese}}</text>
+                  </view>
                 </view>
               </view>
             </view>

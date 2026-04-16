@@ -1,10 +1,10 @@
 {
   "pages": [
-    "pages/auth/index",
     "pages/home/index",
     "pages/library/index",
     "pages/word/index",
     "pages/profile/index",
+    "pages/auth/index",
     "pages/sentence-detail/index",
     "pages/word-detail/index",
     "pages/about/index",

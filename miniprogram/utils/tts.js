@@ -3,7 +3,6 @@ const { getSettings } = require("./settings");
 const TTS_CACHE_KEY = "sentence_tts_cache_v2";
 const TTS_TOKEN_CACHE_KEY = "sentence_tts_token_v1";
 const BAIDU_TTS_FUNCTION_NAME = "baiduTts";
-const BAIDU_TTS_URL = "https://tsn.baidu.com/text2audio";
 
 function getTtsCache() {
   return wx.getStorageSync(TTS_CACHE_KEY) || {};
@@ -30,8 +29,8 @@ function hashText(text = "") {
   return `tts_${Math.abs(hash)}`;
 }
 
-function buildCacheKey(text, voiceGender, speechRate) {
-  return `${hashText(text)}_${voiceGender}_${speechRate}`;
+function buildCacheKey(scope, text, voiceGender, speechRate) {
+  return `${scope}_${hashText(text)}_${voiceGender}_${speechRate}`;
 }
 
 function canUseSavedFile(path) {
@@ -169,7 +168,7 @@ function callBaiduTtsCloudFunction(data) {
   });
 }
 
-async function getSentenceTtsPath(text, options = {}) {
+async function getTextTtsPath(text, options = {}) {
   const content = String(text || "").trim();
   if (!content) {
     throw new Error("empty text");
@@ -178,7 +177,8 @@ async function getSentenceTtsPath(text, options = {}) {
   const settings = getSettings();
   const voiceGender = options.voiceGender || settings.voiceGender || "female";
   const speechRate = Number(options.speechRate || settings.speechRate || 5);
-  const cacheKey = buildCacheKey(content, voiceGender, speechRate);
+  const scope = options.scope || "sentence";
+  const cacheKey = buildCacheKey(scope, content, voiceGender, speechRate);
   const cache = getTtsCache();
   const cachedPath = cache[cacheKey];
   if (canUseSavedFile(cachedPath)) {
@@ -201,7 +201,8 @@ async function getSentenceTtsPath(text, options = {}) {
   try {
     return await resolveFromCloud();
   } catch (err) {
-    console.error("[tts] getSentenceTtsPath failed", {
+    console.error("[tts] getTextTtsPath failed", {
+      scope,
       text: content,
       voiceGender,
       speechRate,
@@ -209,6 +210,20 @@ async function getSentenceTtsPath(text, options = {}) {
     });
     throw err;
   }
+}
+
+function getSentenceTtsPath(text, options = {}) {
+  return getTextTtsPath(text, {
+    ...options,
+    scope: "sentence",
+  });
+}
+
+function getChineseTtsPath(text, options = {}) {
+  return getTextTtsPath(text, {
+    ...options,
+    scope: "sentence_chinese",
+  });
 }
 
 function clearTtsCache() {
@@ -231,5 +246,6 @@ function clearTtsCache() {
 module.exports = {
   TTS_CACHE_KEY,
   getSentenceTtsPath,
+  getChineseTtsPath,
   clearTtsCache,
 };

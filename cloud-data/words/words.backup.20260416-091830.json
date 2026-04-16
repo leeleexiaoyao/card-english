@@ -1,0 +1,1064 @@
+[
+  {
+    "_id": "78167c7f69ddf5a709a2c02d0e1539fc",
+    "word": "'hood",
+    "phonetic": "hʊd",
+    "definition": "",
+    "translation": "n. 罩；风帽；（布质）面罩；学位连领帽（表示学位种类）\\nv. 覆盖；用头巾包；使(马,鹰等)戴头罩；给…加罩\\n[网络] 胡德；兜帽；引擎盖",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c02e45338e9f",
+    "word": "-gamy",
+    "phonetic": "-ɡeimi",
+    "definition": "",
+    "translation": " 表示：婚姻,性结合：polygamy; 具有...受精方式；具有...生殖器官：cleistogamy",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c02f512efe4e",
+    "word": "-gate",
+    "phonetic": "geɪt",
+    "definition": "",
+    "translation": "n. 大门；出入口；门道\\nvt. 给…装大门\\nn. (Gate)人名；(英)盖特；(法、瑞典)加特",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0300465982d",
+    "word": "-gen",
+    "phonetic": "d'ʒen",
+    "definition": "",
+    "translation": " [医]〔词尾〕原, 剂：加到词干上指该词干表示的物体或状态产生的动因, 如过敏原(allergen), 冷冻剂(cryogen), 致病原(pathogen)",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c031105abeff",
+    "word": "-genetic",
+    "phonetic": "dʒɪ'netɪk",
+    "definition": "",
+    "translation": "a. 遗传的；基因的；起源的",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03200dd4c93",
+    "word": "butylbenzene",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[化] 丁苯",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0330d048fa3",
+    "word": "butylcarboxylic acid",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[医] 戊酸, 缬草酸",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0340a9e2569",
+    "word": "butylcellosolve",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[化] 丁基溶纤剂; 乙二醇单丁醚",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0357a0dc603",
+    "word": "butylcellusolve",
+    "phonetic": ",bju:til'selә,sɔlv",
+    "definition": "",
+    "translation": "丁基溶纤剂, 乙二醇二丁醚",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0367ecefb64",
+    "word": "butylchloral",
+    "phonetic": "bjutil'klɔ:rәl",
+    "definition": "",
+    "translation": "丁氯醛",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0371f904b88",
+    "word": "by pass",
+    "phonetic": "bai pɑ:s",
+    "definition": "",
+    "translation": "旁路，绕道",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0383b30e85b",
+    "word": "by persistence",
+    "phonetic": "",
+    "definition": "",
+    "translation": "坚持不懈地,凭毅力",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03909d1accb",
+    "word": "by piecemeal",
+    "phonetic": "",
+    "definition": "",
+    "translation": "一件一件地, 逐渐地, 零碎地",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03a7556de28",
+    "word": "by plane",
+    "phonetic": "",
+    "definition": "",
+    "translation": "乘飞机",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03b1f40b0b4",
+    "word": "by post",
+    "phonetic": "",
+    "definition": "",
+    "translation": "经邮局,通过邮寄",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03c58b12617",
+    "word": "community real income",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[经] 社会(集体)实际收入",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03d13bb8f71",
+    "word": "community responsibility",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[法] 社会责任",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03e063c765e",
+    "word": "community school",
+    "phonetic": "",
+    "definition": "",
+    "translation": "社区学校",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c03f56026eed",
+    "word": "community service",
+    "phonetic": "kəˈmju:niti ˈsɜːvɪs",
+    "definition": "",
+    "translation": "n. 感化, 感化工作",
+    "pos": "",
+    "collins": {
+      "$numberInt": "1"
+    },
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0403a4d77a5",
+    "word": "Community Service Network",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[计] 社区服务网络",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0410f685387",
+    "word": "community television system",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[电] 社区电视系统",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0420a4aef7e",
+    "word": "community view",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[计] 共同意向",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0437f659bce",
+    "word": "inconsecutive",
+    "phonetic": ".inkәn'sekjutiv",
+    "definition": "",
+    "translation": "a. 不连续的, 前后不连贯的",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04445894e30",
+    "word": "inconsecutively",
+    "phonetic": "inkәnˊsekjutivli",
+    "definition": "",
+    "translation": "adv. 不连续",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c045128d9157",
+    "word": "inconsequence",
+    "phonetic": "in'kɒnsikwәns",
+    "definition": "n. having no important effects or influence",
+    "translation": "n. 不合理, 矛盾, 不切题",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0460a5d1e53",
+    "word": "inconsequent",
+    "phonetic": "in'kɒnsikwәnt",
+    "definition": "s. lacking worth or importance",
+    "translation": "a. 不合理的, 矛盾的, 不切题的",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0472e0363c3",
+    "word": "nite",
+    "phonetic": "nait",
+    "definition": "",
+    "translation": "n. 夜间（等于night）",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "30143"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0481296a26c",
+    "word": "niteflix",
+    "phonetic": "",
+    "definition": "Dreams so complex in plot and rich in production value that they seem like feature length films.\\n> Wow! I had niteflix last night. The only thing missing were the end credits.\\n> I wonder if Steven Spielberg has niteflix.\\n",
+    "translation": "",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04978420612",
+    "word": "Nitella",
+    "phonetic": "",
+    "definition": "",
+    "translation": "n. 丽藻属\\n[网络] 尼他拉；尼特拉牌手表；黑轮藻属",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04a2300ef80",
+    "word": "Nitelleae",
+    "phonetic": "",
+    "definition": "",
+    "translation": "拟轮藻亚纲",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04b199bcf65",
+    "word": "nitro-paraffin",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[化] 硝基烷烃",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04c1695d993",
+    "word": "nitro-pentaerythrite",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[化] 季戊四醇硝酸酯; 季戊四醇四硝酸酯",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04d3b26de12",
+    "word": "nitro-phenyl isocyanate",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[化] 异氰酸硝基苯酯",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04e0d26d9e0",
+    "word": "nitro-powder",
+    "phonetic": "",
+    "definition": "",
+    "translation": "n. 硝化火药",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c04f188b6404",
+    "word": "no flies on",
+    "phonetic": "",
+    "definition": "",
+    "translation": "很机灵,精明",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0500e9e9678",
+    "word": "no fonts installed",
+    "phonetic": "",
+    "definition": "",
+    "translation": "没有安装字体\\n[计] 没有安装字体",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0515c91b1c8",
+    "word": "no funds",
+    "phonetic": "",
+    "definition": "",
+    "translation": "存款不足\\n[经] 存款不足",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05239aec58e",
+    "word": "No gains without pains",
+    "phonetic": "",
+    "definition": "",
+    "translation": "不劳则无获",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0535f6750e6",
+    "word": "stag party",
+    "phonetic": "stæg ˈpɑ:ti",
+    "definition": "",
+    "translation": "n. <口>只有男人参加的交谊会",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0541d6c179c",
+    "word": "stag's garlic",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[网络] 雄鹿的大蒜",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0551bb736f5",
+    "word": "stag's-horn coral",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[网络] 雄鹿角珊瑚",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05600efd220",
+    "word": "stag-born calculus",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[医] 鹿角样结石(肾盂)",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c057694aae6a",
+    "word": "plant material (as straw)\\nv. cover with thatch",
+    "phonetic": "n. 盖屋顶的茅草, 用草盖的屋顶, 浓密头发\\nvt. 用茅草覆盖",
+    "definition": "",
+    "translation": {
+      "$numberInt": "1"
+    },
+    "pos": "",
+    "collins": "toefl gre",
+    "oxford": {
+      "$numberInt": "19178"
+    },
+    "tag": {
+      "$numberInt": "20118"
+    },
+    "bnc": "i:thatching/d:thatched/s:thatches/3:thatches/p:thatched",
+    "frq": "",
+    "exchange": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05856ebfc41",
+    "word": "thatch palm",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[网络] 茅草掌",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05973abe01b",
+    "word": "thatch tree",
+    "phonetic": "",
+    "definition": "",
+    "translation": "[网络] 茅草树",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05a42c2fbec",
+    "word": "unshipp",
+    "phonetic": "",
+    "definition": "",
+    "translation": "v. 船上卸货;船客等下船;解下",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05b4854cc7a",
+    "word": "unshipped",
+    "phonetic": "ʌn'ʃɪpt",
+    "definition": "",
+    "translation": "v. 从船上卸，解下，被卸下( unship的过去式和过去分词 )",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05c56fdcc1f",
+    "word": "unshipping",
+    "phonetic": "",
+    "definition": "",
+    "translation": " 从船上卸, 解下, 被卸下( unship的现在分词 )",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05d518a4fc6",
+    "word": "unships",
+    "phonetic": "",
+    "definition": "",
+    "translation": "从船上卸, 解下, 被卸下（unship的第三人称单数形式）",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05e48d0717a",
+    "word": "Why do you dislike the medicine so much",
+    "phonetic": "",
+    "definition": "",
+    "translation": "你为何如此不喜欢吃药呢",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c05f481084e0",
+    "word": "why ever",
+    "phonetic": "hwai ˈevə",
+    "definition": "",
+    "translation": "为什么（表示惊讶）",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0604149c4a4",
+    "word": "why not",
+    "phonetic": "hwai nɔt",
+    "definition": "",
+    "translation": "何妨；何不",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  },
+  {
+    "_id": "78167c7f69ddf5a709a2c0617bb28b5a",
+    "word": "why not...?",
+    "phonetic": "",
+    "definition": "",
+    "translation": "为什么不...?",
+    "pos": "",
+    "collins": "",
+    "oxford": "",
+    "tag": "",
+    "bnc": {
+      "$numberInt": "0"
+    },
+    "frq": {
+      "$numberInt": "0"
+    },
+    "exchange": "",
+    "detail": "",
+    "audio": ""
+  }
+]

@@ -158,6 +158,10 @@
   line-height: 1.58;
 }
 
+.chinese-text {
+  display: block;
+}
+
 .plain-token {
   color: #222222;
 }

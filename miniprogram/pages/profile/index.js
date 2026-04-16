@@ -67,6 +67,17 @@ Page({
     });
   },
 
+  requireProfileAction() {
+    const app = getApp();
+    if (!app || typeof app.requireAuth !== "function") {
+      return true;
+    }
+    return app.requireAuth({
+      route: "pages/profile/index",
+      isTab: true,
+    });
+  },
+
   getPlayRateIndex(rate) {
     const index = RATE_OPTIONS.findIndex((item) => item === rate);
     return index >= 0 ? index : 1;
@@ -200,73 +211,12 @@ Page({
 
   onLoginTap() {
     const app = getApp();
-    const cachedUser = app && typeof app.getCachedUser === "function" ? app.getCachedUser() : null;
-    if (cachedUser && cachedUser.openid) {
-      wx.showLoading({
-        title: "登录中",
-        mask: true,
+    if (app && typeof app.redirectToAuthPage === "function") {
+      app.redirectToAuthPage({
+        route: "pages/profile/index",
+        isTab: true,
       });
-      Promise.resolve()
-        .then(() => app.beginLogin())
-        .then(async (user) => {
-          const decoratedUser = await this.decorateUser(user || cachedUser);
-          this.setData({
-            profile: this.buildProfile(decoratedUser),
-            memberLabel: getMembershipLabel(decoratedUser),
-            freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
-            showProfileEditor: false,
-            editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
-            editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
-          });
-        })
-        .catch((err) => {
-          console.error("[profile] login failed", err);
-          wx.showToast({
-            title: (err && err.errMsg) || "登录失败",
-            icon: "none",
-          });
-        })
-        .finally(() => {
-          wx.hideLoading();
-        });
-      return;
     }
-
-    wx.getUserProfile({
-      desc: "用于同步头像和昵称",
-      success: async (res) => {
-        wx.showLoading({
-          title: "登录中",
-          mask: true,
-        });
-        try {
-          const user = await app.completeLoginWithUserProfile(res.userInfo || {});
-          const decoratedUser = await this.decorateUser(user);
-          this.setData({
-            profile: this.buildProfile(decoratedUser),
-            memberLabel: getMembershipLabel(decoratedUser),
-            freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
-            showProfileEditor: false,
-            editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
-            editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
-          });
-        } catch (err) {
-          console.error("[profile] login failed", err);
-          wx.showToast({
-            title: (err && err.errMsg) || "登录失败",
-            icon: "none",
-          });
-        } finally {
-          wx.hideLoading();
-        }
-      },
-      fail: () => {
-        wx.showToast({
-          title: "已取消授权",
-          icon: "none",
-        });
-      },
-    });
   },
 
   onChooseAvatar(e) {
@@ -286,6 +236,9 @@ Page({
   },
 
   async onSaveProfile() {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const app = getApp();
     const currentUser = app && app.globalData ? app.globalData.user : null;
     if (!currentUser || !currentUser.openid) {
@@ -382,25 +335,14 @@ Page({
           editNickName: "",
           editAvatarUrl: "/images/icons/avatar.png",
         });
-        setTimeout(() => {
-          wx.reLaunch({
-            url: "/pages/auth/index",
-            fail: (err) => {
-              console.error("[profile] reLaunch auth failed", err);
-              wx.navigateTo({
-                url: "/pages/auth/index",
-                fail: (navErr) => {
-                  console.error("[profile] navigateTo auth failed", navErr);
-                },
-              });
-            },
-          });
-        }, 50);
       },
     });
   },
 
   onToggleAutoPlay(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const settings = updateSettings({
       autoPlayAudio: Boolean(e.detail.value),
     });
@@ -409,7 +351,22 @@ Page({
     });
   },
 
+  onToggleSpeakChinese(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
+    const settings = updateSettings({
+      speakChinese: Boolean(e.detail.value),
+    });
+    this.setData({
+      settings,
+    });
+  },
+
   onToggleDefaultChinese(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const settings = updateSettings({
       defaultShowChinese: Boolean(e.detail.value),
     });
@@ -419,6 +376,9 @@ Page({
   },
 
   onSelectPlayRate(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const rate = Number(e.currentTarget.dataset.rate);
     if (!rate) {
       return;
@@ -432,6 +392,9 @@ Page({
   },
 
   onPlayRatePickerChange(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const index = Number(e.detail.value);
     const rate = RATE_OPTIONS[index];
     if (!rate) {
@@ -448,6 +411,9 @@ Page({
   },
 
   onSelectSpeechRate(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const rate = Number(e.currentTarget.dataset.rate);
     if (!rate) {
       return;
@@ -461,6 +427,9 @@ Page({
   },
 
   onSpeechRatePickerChange(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const index = Number(e.detail.value);
     const target = SPEECH_RATE_OPTIONS[index];
     if (!target) {
@@ -477,6 +446,9 @@ Page({
   },
 
   onVoiceGenderPickerChange(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     const index = Number(e.detail.value);
     const target = VOICE_GENDER_OPTIONS[index];
     if (!target) {
@@ -493,6 +465,9 @@ Page({
   },
 
   onClearCache() {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     wx.showModal({
       title: "清除缓存",
       content: "将清理句库缓存、词典缓存和句子 TTS 缓存，但保留学习状态与设置。",
@@ -512,12 +487,18 @@ Page({
   },
 
   onAboutUs() {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     wx.navigateTo({
       url: "/pages/about/index",
     });
   },
 
   onOpenMemberCenter() {
+    if (!this.requireProfileAction()) {
+      return;
+    }
     wx.navigateTo({
       url: "/pages/member-center/index",
     });

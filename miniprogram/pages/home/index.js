@@ -12,10 +12,12 @@ const {
 const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
-const { getSentenceTtsPath } = require("../../utils/tts");
+const { getSentenceTtsPath, getChineseTtsPath } = require("../../utils/tts");
 const { consumeSentenceAccess } = require("../../utils/membership");
+const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
+const AUTO_PLAY_CHINESE_DELAY_MS = 1000;
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -51,7 +53,10 @@ Page({
   },
 
   onLoad() {
-    this.audioContext = this.createAudioContext();
+    this.audioOwner = createAudioOwner("home");
+    this.audioRequestId = 0;
+    this.autoPlaySequenceId = 0;
+    this.autoPlayChineseTimer = null;
     this.swiperGuarding = false;
     this.initialSentenceAccessDone = false;
     this.initialSentenceAccessPromise = null;
@@ -69,17 +74,25 @@ Page({
     }, 0);
   },
 
-  onUnload() {
-    if (this.audioContext) {
-      this.audioContext.destroy();
-      this.audioContext = null;
-    }
+  onHide() {
+    this.clearPendingAutoPlaySequence();
+    this.audioRequestId += 1;
+    stopAudio(this.audioOwner);
   },
 
-  createAudioContext() {
-    const audioContext = wx.createInnerAudioContext();
-    audioContext.obeyMuteSwitch = false;
-    return audioContext;
+  onUnload() {
+    this.clearPendingAutoPlaySequence();
+    this.audioRequestId += 1;
+    stopAudio(this.audioOwner);
+  },
+
+  clearPendingAutoPlaySequence() {
+    this.autoPlaySequenceId += 1;
+    if (!this.autoPlayChineseTimer) {
+      return;
+    }
+    clearTimeout(this.autoPlayChineseTimer);
+    this.autoPlayChineseTimer = null;
   },
 
   buildSentenceViewModel(sentence, settings) {
@@ -100,6 +113,17 @@ Page({
       return;
     }
     this.refreshPageStateFromLocal();
+  },
+
+  requireActionAuth() {
+    const app = getApp();
+    if (!app || typeof app.requireAuth !== "function") {
+      return true;
+    }
+    return app.requireAuth({
+      route: "pages/home/index",
+      isTab: true,
+    });
   },
 
   refreshPageStateFromLocal() {
@@ -311,6 +335,9 @@ Page({
   },
 
   onTapImage(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { index } = e.currentTarget.dataset;
     const targetIndex = Number(index);
     if (Number.isNaN(targetIndex)) {
@@ -334,6 +361,17 @@ Page({
     if (this.swiperGuarding) {
       return;
     }
+    if (!this.requireActionAuth()) {
+      this.swiperGuarding = true;
+      this.setActiveIndex(previousIndex, false);
+      this.setData({
+        swiperCurrent: previousIndex,
+      });
+      setTimeout(() => {
+        this.swiperGuarding = false;
+      }, 0);
+      return;
+    }
     if (nextIndex > previousIndex) {
       this.setActiveIndex(nextIndex, false);
       const allowed = await this.ensureSentenceAccess(nextIndex);
@@ -352,7 +390,7 @@ Page({
 
     this.setActiveIndex(nextIndex, false);
     if (this.data.settings.autoPlayAudio) {
-      this.onPlaySentenceAudio();
+      this.startAutoPlaySequence();
     }
   },
 
@@ -391,6 +429,11 @@ Page({
     if (this.initialSentenceAccessPromise) {
       return this.initialSentenceAccessPromise;
     }
+    const app = getApp();
+    if (!app || typeof app.isAuthenticated !== "function" || !app.isAuthenticated()) {
+      this.initialSentenceAccessDone = true;
+      return;
+    }
     const firstSentence = this.data.sentences[0];
     if (!firstSentence || !firstSentence._id) {
       this.initialSentenceAccessDone = true;
@@ -426,6 +469,9 @@ Page({
   },
 
   goPrev() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const nextIndex = this.data.currentIndex - 1;
     if (nextIndex < 0) {
       wx.showToast({
@@ -440,6 +486,9 @@ Page({
   },
 
   async goNext() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const nextIndex = this.data.currentIndex + 1;
     if (nextIndex >= this.data.sentences.length) {
       wx.showToast({
@@ -458,6 +507,9 @@ Page({
   },
 
   async onToggleMastered() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { currentSentence, currentIndex, sentences } = this.data;
     if (!currentSentence) {
       return;
@@ -492,6 +544,9 @@ Page({
   },
 
   async onToggleFavorited() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { currentSentence, currentIndex } = this.data;
     if (!currentSentence) {
       return;
@@ -534,14 +589,23 @@ Page({
   },
 
   async onPlaySentenceAudio() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const sentence = this.data.currentSentence;
     if (!sentence) {
       return;
     }
+    this.clearPendingAutoPlaySequence();
+    const requestId = this.audioRequestId + 1;
+    this.audioRequestId = requestId;
     try {
       const audioUrl = await this.resolveSentenceAudio(sentence);
-      this.playAudio(audioUrl);
+      this.playAudio(audioUrl, requestId);
     } catch (err) {
+      if (requestId !== this.audioRequestId) {
+        return;
+      }
       console.error("[home] sentence audio failed", err);
       wx.showToast({
         title: getAudioErrorMessage(err),
@@ -550,7 +614,101 @@ Page({
     }
   },
 
-  playAudio(audioUrl) {
+  async startAutoPlaySequence() {
+    const sentence = this.data.currentSentence;
+    if (!sentence) {
+      return;
+    }
+
+    this.clearPendingAutoPlaySequence();
+    const sequenceId = this.autoPlaySequenceId;
+    const requestId = this.audioRequestId + 1;
+    this.audioRequestId = requestId;
+
+    try {
+      const audioUrl = await this.resolveSentenceAudio(sentence);
+      if (sequenceId !== this.autoPlaySequenceId || requestId !== this.audioRequestId) {
+        return;
+      }
+      this.playAudio(audioUrl, requestId);
+    } catch (err) {
+      if (sequenceId !== this.autoPlaySequenceId || requestId !== this.audioRequestId) {
+        return;
+      }
+      console.error("[home] auto sentence audio failed", err);
+      wx.showToast({
+        title: getAudioErrorMessage(err),
+        icon: "none",
+      });
+      return;
+    }
+
+    const chineseText = String(sentence.chinese || "").trim();
+    if (!this.data.settings.speakChinese || !chineseText) {
+      return;
+    }
+
+    this.autoPlayChineseTimer = setTimeout(async () => {
+      this.autoPlayChineseTimer = null;
+      if (sequenceId !== this.autoPlaySequenceId) {
+        return;
+      }
+
+      const chineseRequestId = this.audioRequestId + 1;
+      this.audioRequestId = chineseRequestId;
+
+      try {
+        const chineseAudioUrl = await getChineseTtsPath(chineseText);
+        if (sequenceId !== this.autoPlaySequenceId || chineseRequestId !== this.audioRequestId) {
+          return;
+        }
+        this.playAudio(chineseAudioUrl, chineseRequestId);
+      } catch (err) {
+        if (sequenceId !== this.autoPlaySequenceId || chineseRequestId !== this.audioRequestId) {
+          return;
+        }
+        console.error("[home] auto chinese audio failed", err);
+        wx.showToast({
+          title: getAudioErrorMessage(err),
+          icon: "none",
+        });
+      }
+    }, AUTO_PLAY_CHINESE_DELAY_MS);
+  },
+
+  async onPlayChineseAudio(e) {
+    if (!this.data.settings.speakChinese) {
+      return;
+    }
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const chineseText = String((e.currentTarget.dataset && e.currentTarget.dataset.text) || "").trim();
+    if (!chineseText) {
+      return;
+    }
+    this.clearPendingAutoPlaySequence();
+    const requestId = this.audioRequestId + 1;
+    this.audioRequestId = requestId;
+    try {
+      const audioUrl = await getChineseTtsPath(chineseText);
+      if (requestId !== this.audioRequestId) {
+        return;
+      }
+      this.playAudio(audioUrl, requestId);
+    } catch (err) {
+      if (requestId !== this.audioRequestId) {
+        return;
+      }
+      console.error("[home] chinese audio failed", err);
+      wx.showToast({
+        title: getAudioErrorMessage(err),
+        icon: "none",
+      });
+    }
+  },
+
+  playAudio(audioUrl, requestId) {
     if (!audioUrl) {
       wx.showToast({
         title: "暂无音频",
@@ -558,16 +716,19 @@ Page({
       });
       return;
     }
-    if (!this.audioContext) {
-      this.audioContext = this.createAudioContext();
-    }
-    this.audioContext.stop();
-    this.audioContext.src = audioUrl;
-    this.audioContext.playbackRate = Number(this.data.settings.playRate || 1);
-    this.audioContext.play();
+    const activeRequestId = requestId || this.audioRequestId + 1;
+    this.audioRequestId = activeRequestId;
+    playGlobalAudio({
+      src: audioUrl,
+      playbackRate: Number(this.data.settings.playRate || 1),
+      owner: this.audioOwner,
+    });
   },
 
   async onTapWord(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { word } = e.currentTarget.dataset;
     if (!word) {
       return;
@@ -603,10 +764,17 @@ Page({
   },
 
   onPlayWordAudio(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    this.clearPendingAutoPlaySequence();
     this.playAudio(e.detail.audio);
   },
 
   onOpenWordCard(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { id } = (e && e.detail) || {};
     if (!id) {
       return;

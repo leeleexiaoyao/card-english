@@ -1,5 +1,6 @@
 <view class="page">
   <view class="panel">
+    <view class="back-btn" bindtap="onBackTap">返回</view>
     <view class="badge">卡片英语学习</view>
     <view class="title">先完成微信登录</view>
     <view class="desc">登录后同步头像、昵称、学习记录和会员状态。</view>

@@ -145,6 +145,10 @@
   opacity: 0.96;
 }
 
+.chinese-text {
+  display: block;
+}
+
 .bottom-actions {
   display: flex;
   align-items: center;

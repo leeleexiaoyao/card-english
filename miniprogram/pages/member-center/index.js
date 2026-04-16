@@ -68,6 +68,16 @@ Page({
   },
 
   async onOpenVip() {
+    const app = getApp();
+    if (app && typeof app.requireAuth === "function") {
+      const allowed = app.requireAuth({
+        route: "pages/member-center/index",
+        params: {},
+      });
+      if (!allowed) {
+        return;
+      }
+    }
     if (this.data.paying) {
       return;
     }

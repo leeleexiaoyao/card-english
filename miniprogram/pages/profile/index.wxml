@@ -59,6 +59,14 @@
       <switch checked="{{settings.autoPlayAudio}}" color="#0478F5" bindchange="onToggleAutoPlay" />
     </view>
 
+    <view class="setting-row">
+      <view class="row-main">
+        <view class="row-title">播报中文</view>
+        <view class="row-sub">在英文音频后播报</view>
+      </view>
+      <switch checked="{{settings.speakChinese}}" color="#0478F5" bindchange="onToggleSpeakChinese" />
+    </view>
+
     <view class="setting-row clickable">
       <view class="row-title">播放倍速</view>
       <picker mode="selector" range="{{playRateLabels}}" value="{{playRateIndex}}" bindchange="onPlayRatePickerChange">

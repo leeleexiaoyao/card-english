@@ -1,7 +1,39 @@
 // app.js
 const AUTH_ENABLED_KEY = "user_auth_enabled_v1";
+const AUTH_SOURCE_KEY = "user_auth_source_v1";
 const USER_CACHE_KEY = "user_profile_cloud_v1";
 const SENTENCE_STATE_CACHE_KEY = "sentence_state_cache_v1";
+const TAB_BAR_ROUTES = ["pages/home/index", "pages/library/index", "pages/word/index", "pages/profile/index"];
+
+function normalizeRoute(route = "") {
+  return String(route || "").replace(/^\/+/, "");
+}
+
+function normalizeAuthSource(source = {}) {
+  const route = normalizeRoute(source.route || source.page || "");
+  const params = source.params && typeof source.params === "object" ? source.params : {};
+  return {
+    route,
+    isTab: route ? (typeof source.isTab === "boolean" ? source.isTab : TAB_BAR_ROUTES.includes(route)) : false,
+    params,
+  };
+}
+
+function buildPageUrl(source = {}) {
+  const normalized = normalizeAuthSource(source);
+  if (!normalized.route) {
+    return "/pages/home/index";
+  }
+  const query = Object.keys(normalized.params).reduce((list, key) => {
+    const value = normalized.params[key];
+    if (value === undefined || value === null || value === "") {
+      return list;
+    }
+    list.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    return list;
+  }, []);
+  return `/${normalized.route}${query.length ? `?${query.join("&")}` : ""}`;
+}
 
 function normalizeUser(user = {}) {
   return {
@@ -25,6 +57,73 @@ function normalizeUser(user = {}) {
 }
 
 App({
+  isAuthenticated() {
+    return Boolean(
+      this.globalData &&
+        this.globalData.authEnabled &&
+        this.globalData.user &&
+        this.globalData.user.openid
+    );
+  },
+
+  setAuthSource(source = {}) {
+    const normalizedSource = normalizeAuthSource(source);
+    if (!normalizedSource.route) {
+      return null;
+    }
+    this.globalData.authSource = normalizedSource;
+    wx.setStorageSync(AUTH_SOURCE_KEY, normalizedSource);
+    return normalizedSource;
+  },
+
+  getAuthSource() {
+    if (this.globalData && this.globalData.authSource && this.globalData.authSource.route) {
+      return normalizeAuthSource(this.globalData.authSource);
+    }
+    const cachedSource = wx.getStorageSync(AUTH_SOURCE_KEY) || null;
+    return cachedSource && cachedSource.route ? normalizeAuthSource(cachedSource) : null;
+  },
+
+  clearAuthSource() {
+    if (this.globalData) {
+      this.globalData.authSource = null;
+    }
+    wx.removeStorageSync(AUTH_SOURCE_KEY);
+  },
+
+  openPageBySource(source = {}) {
+    const normalizedSource = normalizeAuthSource(source);
+    const target = normalizedSource.route ? normalizedSource : { route: "pages/home/index", isTab: true, params: {} };
+    const url = buildPageUrl(target);
+    if (target.isTab) {
+      wx.switchTab({
+        url,
+        fail: (err) => {
+          console.error("[app] switchTab target failed", err);
+          wx.reLaunch({
+            url,
+          });
+        },
+      });
+      return;
+    }
+    wx.redirectTo({
+      url,
+      fail: (err) => {
+        console.error("[app] redirectTo target failed", err);
+        wx.reLaunch({
+          url,
+        });
+      },
+    });
+  },
+
+  returnToAuthSource() {
+    const source = this.getAuthSource();
+    this.clearAuthSource();
+    this.openPageBySource(source || { route: "pages/home/index", isTab: true });
+  },
+
   async ensureOpenId(forceRefresh = false) {
     if (!this.globalData.authEnabled) {
       return "";
@@ -142,9 +241,68 @@ App({
     wx.setStorageSync(AUTH_ENABLED_KEY, false);
   },
 
+  requireAuth(source = {}) {
+    if (this.isAuthenticated()) {
+      return true;
+    }
+    const pages = getCurrentPages();
+    const current = pages.length ? pages[pages.length - 1] : null;
+    const normalizedSource = normalizeAuthSource({
+      route: source.route || source.page || (current && current.route) || "pages/home/index",
+      isTab: typeof source.isTab === "boolean" ? source.isTab : undefined,
+      params: source.params || {},
+    });
+    this.redirectToAuthPage(normalizedSource);
+    return false;
+  },
+
+  redirectToAuthPage(source = {}) {
+    const normalizedSource = normalizeAuthSource(source);
+    if (normalizedSource.route) {
+      this.setAuthSource(normalizedSource);
+    }
+    const pages = getCurrentPages();
+    const current = pages.length ? pages[pages.length - 1] : null;
+    if (current && current.route === "pages/auth/index") {
+      return;
+    }
+    if (this.globalData && this.globalData.authPageOpening) {
+      return;
+    }
+    this.globalData.authPageOpening = true;
+    wx.navigateTo({
+      url: "/pages/auth/index",
+      complete: () => {
+        this.globalData.authPageOpening = false;
+      },
+      fail: (err) => {
+        console.error("[app] redirectTo auth failed", err);
+        wx.redirectTo({
+          url: "/pages/auth/index",
+          complete: () => {
+            this.globalData.authPageOpening = false;
+          },
+          fail: (redirectErr) => {
+            console.error("[app] redirectTo auth fallback failed", redirectErr);
+            wx.reLaunch({
+              url: "/pages/auth/index",
+              complete: () => {
+                this.globalData.authPageOpening = false;
+              },
+              fail: (relaunchErr) => {
+                console.error("[app] reLaunch auth failed", relaunchErr);
+              },
+            });
+          },
+        });
+      },
+    });
+  },
+
   onLaunch: function () {
     const cachedSettings = wx.getStorageSync("user_settings_v1") || {};
     const cachedUser = wx.getStorageSync(USER_CACHE_KEY) || null;
+    const cachedAuthSource = wx.getStorageSync(AUTH_SOURCE_KEY) || null;
     const authEnabled = wx.getStorageSync(AUTH_ENABLED_KEY);
     const normalizedCachedUser = cachedUser && cachedUser.openid ? normalizeUser(cachedUser) : null;
     this.globalData = {
@@ -154,9 +312,12 @@ App({
       env: "cloud1-4gsbdd828457096e",
       openid: normalizedCachedUser ? normalizedCachedUser.openid : "",
       user: normalizedCachedUser,
+      authSource: cachedAuthSource && cachedAuthSource.route ? normalizeAuthSource(cachedAuthSource) : null,
+      authPageOpening: false,
       authEnabled: authEnabled === "" ? Boolean(normalizedCachedUser) : Boolean(authEnabled),
       settings: {
         autoPlayAudio: false,
+        speakChinese: false,
         defaultShowChinese: false,
         playRate: 1,
         voiceGender: "female",

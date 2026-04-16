@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -15,11 +16,13 @@ NUMERIC_FIELDS = {"collins", "oxford", "bnc", "frq"}
 
 def run_tcb(command_payload, env_id, json_output=True):
     env = os.environ.copy()
-    env.setdefault("HOME", "/tmp/codex-home")
-    env.setdefault("XDG_CONFIG_HOME", "/tmp/codex-home/.config")
-    env.setdefault("npm_config_cache", "/tmp/npmcache")
-    env.setdefault("LOG_DIRNAME", "/tmp/cloudbase-framework/logs")
-    env.setdefault("CLOUDBASE_LOG_DIR", "/tmp/cloudbase-framework/logs")
+    env["HOME"] = "/tmp/codex-home"
+    env["XDG_CONFIG_HOME"] = "/tmp/codex-home/.config"
+    env["npm_config_cache"] = "/tmp/npmcache"
+    env["CLOUDBASE_CIID"] = "1"
+    env["CI"] = "1"
+    env["LOG_DIRNAME"] = "/tmp/cloudbase-framework/logs"
+    env["CLOUDBASE_LOG_DIR"] = "/tmp/cloudbase-framework/logs"
     Path(env["HOME"]).mkdir(parents=True, exist_ok=True)
     Path(env["XDG_CONFIG_HOME"]).mkdir(parents=True, exist_ok=True)
     Path(env["npm_config_cache"]).mkdir(parents=True, exist_ok=True)
@@ -28,6 +31,8 @@ def run_tcb(command_payload, env_id, json_output=True):
     cmd = [
         "npx",
         "-y",
+        "-p",
+        "node@20",
         "-p",
         "@cloudbase/cli",
         "tcb",
@@ -48,10 +53,11 @@ def run_tcb(command_payload, env_id, json_output=True):
     if not json_output:
         return result.stdout
 
-    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    for line in reversed(lines):
-        if line.startswith("{") and line.endswith("}"):
-            return json.loads(line)
+    stdout = result.stdout.strip()
+    start = stdout.find("{")
+    end = stdout.rfind("}")
+    if start >= 0 and end >= start:
+        return json.loads(stdout[start:end + 1])
     raise RuntimeError(f"unable to parse tcb json output: {result.stdout}")
 
 
@@ -146,17 +152,26 @@ def insert_batch(collection, env_id, docs):
     run_tcb(payload, env_id)
 
 
-def iter_batches(csv_path, batch_size):
+def iter_batches(csv_path, batch_size, skip_rows=0):
     batch = []
+    skipped = 0
     with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
+            if skipped < skip_rows:
+                skipped += 1
+                continue
             batch.append(normalize_row(row))
             if len(batch) >= batch_size:
                 yield batch
                 batch = []
     if batch:
         yield batch
+
+
+def count_csv_rows(csv_path):
+    with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        return max(sum(1 for _ in handle) - 1, 0)
 
 
 def main():
@@ -168,36 +183,54 @@ def main():
         default="/Users/zb/Documents/小程序/vibe coding/卡片英语学习/cloud-data/words/ecdict.csv",
     )
     parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--start-offset", type=int, default=0)
     args = parser.parse_args()
 
     csv_path = Path(args.csv)
     if not csv_path.exists():
         raise SystemExit(f"csv not found: {csv_path}")
+    total_rows = count_csv_rows(csv_path)
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_path = Path(
-        f"/Users/zb/Documents/小程序/vibe coding/卡片英语学习/cloud-data/words/{args.collection}.backup.{timestamp}.json"
-    )
+    start_offset = max(int(args.start_offset or 0), 0)
+    if args.resume:
+      start_offset = count_docs(args.collection, args.env_id)
 
-    print(f"[info] backing up current collection to {backup_path}")
-    backed_up = backup_existing(args.collection, args.env_id, backup_path)
-    print(f"[info] backup docs: {backed_up}")
+    if start_offset <= 0:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_path = Path(
+            f"/Users/zb/Documents/小程序/vibe coding/卡片英语学习/cloud-data/words/{args.collection}.backup.{timestamp}.json"
+        )
 
-    print(f"[info] deleting existing docs from {args.collection}")
-    delete_all(args.collection, args.env_id)
+        print(f"[info] backing up current collection to {backup_path}", flush=True)
+        backed_up = backup_existing(args.collection, args.env_id, backup_path)
+        print(f"[info] backup docs: {backed_up}", flush=True)
 
-    inserted = 0
-    for index, batch in enumerate(iter_batches(csv_path, args.batch_size), start=1):
-        insert_batch(args.collection, args.env_id, batch)
-        inserted += len(batch)
+        print(f"[info] deleting existing docs from {args.collection}", flush=True)
+        delete_all(args.collection, args.env_id)
+    else:
+        print(f"[info] resuming from remote count {start_offset}", flush=True)
+
+    inserted = start_offset
+    initial_batch_index = start_offset // args.batch_size
+    for index, batch in enumerate(iter_batches(csv_path, args.batch_size, skip_rows=start_offset), start=initial_batch_index + 1):
+        for attempt in range(1, 4):
+            try:
+                insert_batch(args.collection, args.env_id, batch)
+                inserted += len(batch)
+                break
+            except Exception as err:
+                if attempt >= 3:
+                    raise
+                print(f"[warn] batch={index} attempt={attempt} failed: {err}", flush=True)
+                time.sleep(2)
         if index == 1 or index % 20 == 0:
-            print(f"[progress] batches={index} inserted={inserted}")
-            sys.stdout.flush()
+            print(f"[progress] batches={index} inserted={inserted}", flush=True)
 
     remote_count = count_docs(args.collection, args.env_id)
-    print(f"[done] local inserted={inserted} remote count={remote_count}")
-    if remote_count != inserted:
-        raise SystemExit(f"count mismatch: inserted={inserted}, remote={remote_count}")
+    print(f"[done] local inserted={inserted} remote count={remote_count}", flush=True)
+    if remote_count != total_rows:
+        raise SystemExit(f"count mismatch: expected={total_rows}, remote={remote_count}")
 
 
 if __name__ == "__main__":

@@ -161,6 +161,10 @@
   transform: translateY(18rpx);
 }
 
+.chinese-text {
+  display: block;
+}
+
 .card-bottom-content.content-collapsed .progress,
 .card-bottom-content.content-collapsed .sentence-line {
   transform: translateY(12rpx);
