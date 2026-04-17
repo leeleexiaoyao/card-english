@@ -68,6 +68,16 @@
     </view>
 
     <view class="setting-row clickable">
+      <view class="row-title">音频播放次数</view>
+      <picker mode="selector" range="{{audioPlayCountLabels}}" value="{{audioPlayCountIndex}}" bindchange="onAudioPlayCountPickerChange">
+        <view class="row-right">
+          <view class="row-value picker-value">{{audioPlayCountLabel}}</view>
+          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+        </view>
+      </picker>
+    </view>
+
+    <view class="setting-row clickable">
       <view class="row-title">播放倍速</view>
       <picker mode="selector" range="{{playRateLabels}}" value="{{playRateIndex}}" bindchange="onPlayRatePickerChange">
         <view class="row-right">

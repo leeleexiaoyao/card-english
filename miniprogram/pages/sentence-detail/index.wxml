@@ -15,7 +15,7 @@
         <swiper-item wx:for="{{sentences}}" wx:key="_id">
           <view class="card-slide">
             <view class="card-shell" bindtap="onTapImage" data-index="{{index}}">
-              <image class="card-bg" src="{{item.imageUrl}}" mode="widthFix" />
+              <image class="card-bg" src="{{item.resolvedImageUrl || item.imageUrl}}" mode="widthFix" />
               <view class="card-overlay"></view>
               <view class="top-actions">
                 <view class="icon-btn" wx:if="{{currentIndex === index}}" catchtap="onPlaySentenceAudio">播</view>

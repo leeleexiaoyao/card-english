@@ -3,7 +3,6 @@
     <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onChangeFilter">
       <view class="filter-main">
         <text class="filter-label">全部</text>
-        <text class="filter-count">{{counts.total}}</text>
       </view>
       <view class="filter-indicator"></view>
     </view>
@@ -62,19 +61,9 @@
           </view>
         </view>
         <view class="action-group">
-          <view class="action-btn {{item.favorited ? 'active' : ''}}" catchtap="onToggleFavorite" data-word="{{item.word}}" data-favorited="{{item.favorited}}">
-            收藏
+          <view wx:if="{{item.audio}}" class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
+            <image class="audio-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
           </view>
-          <view
-            wx:if="{{isVip}}"
-            class="action-btn {{item.customTagged ? 'active custom' : ''}}"
-            catchtap="onToggleCustomTag"
-            data-word="{{item.word}}"
-            data-customtagged="{{item.customTagged}}"
-          >
-            {{customWordTagName}}
-          </view>
-          <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
         </view>
       </view>
     </block>
@@ -95,19 +84,9 @@
           </view>
         </view>
         <view class="action-group">
-          <view class="action-btn {{item.favorited ? 'active' : ''}}" catchtap="onToggleFavorite" data-word="{{item.word}}" data-favorited="{{item.favorited}}">
-            收藏
+          <view wx:if="{{item.audio}}" class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
+            <image class="audio-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
           </view>
-          <view
-            wx:if="{{isVip}}"
-            class="action-btn {{item.customTagged ? 'active custom' : ''}}"
-            catchtap="onToggleCustomTag"
-            data-word="{{item.word}}"
-            data-customtagged="{{item.customTagged}}"
-          >
-            {{customWordTagName}}
-          </view>
-          <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
         </view>
       </view>
 

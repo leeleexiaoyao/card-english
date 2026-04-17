@@ -175,50 +175,26 @@
 
 .action-group {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 8rpx;
   flex-shrink: 0;
 }
 
-.action-btn {
-  min-width: 88rpx;
-  height: 46rpx;
-  padding: 0 14rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid #d4d9e2;
-  color: #637186;
-  font-size: 20rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  background: #ffffff;
-}
-
-.action-btn.active {
-  border-color: #2f72ff;
-  color: #2f72ff;
-  background: #edf3ff;
-}
-
-.action-btn.active.custom {
-  border-color: #e53935;
-  color: #e53935;
-  background: rgba(229, 57, 53, 0.1);
-}
-
-.audio-btn {
-  width: 62rpx;
-  height: 62rpx;
+.audio-icon-btn {
+  width: 68rpx;
+  height: 68rpx;
   border-radius: 50%;
   background: #edf0ff;
-  color: #3f63ff;
-  font-size: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.audio-icon {
+  width: 30rpx;
+  height: 30rpx;
 }
 
 .load-more {

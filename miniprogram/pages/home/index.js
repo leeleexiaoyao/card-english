@@ -21,11 +21,21 @@ const {
 } = require("../../utils/word-mark");
 const { getSentenceTtsPath, getChineseTtsPath } = require("../../utils/tts");
 const { consumeSentenceAccess } = require("../../utils/membership");
-const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
+const {
+  addAudioEventListener,
+  createAudioOwner,
+  playAudio: playGlobalAudio,
+  stopAudio,
+} = require("../../utils/audio-player");
 
 const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
 const AUTO_PLAY_CHINESE_DELAY_MS = 1000;
 const HOME_WINDOW_SIZE = 5;
+const AUDIO_PLAY_COUNT_ROUNDS = {
+  "1": 1,
+  "3": 3,
+  "5": 5,
+};
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -70,7 +80,12 @@ Page({
     this.audioOwner = createAudioOwner("home");
     this.audioRequestId = 0;
     this.autoPlaySequenceId = 0;
+    this.autoPlaySequence = null;
     this.autoPlayChineseTimer = null;
+    this.removeAudioEventListener = addAudioEventListener((event) => {
+      this.handleAutoPlayAudioEvent(event);
+    });
+    this.advanceRequestId = 0;
     this.initialSentenceAccessDone = false;
     this.initialSentenceAccessPromise = null;
     this.fullSentences = [];
@@ -100,15 +115,215 @@ Page({
     this.clearPendingAutoPlaySequence();
     this.audioRequestId += 1;
     stopAudio(this.audioOwner);
+    if (this.removeAudioEventListener) {
+      this.removeAudioEventListener();
+      this.removeAudioEventListener = null;
+    }
   },
 
   clearPendingAutoPlaySequence() {
     this.autoPlaySequenceId += 1;
+    this.autoPlaySequence = null;
     if (!this.autoPlayChineseTimer) {
       return;
     }
     clearTimeout(this.autoPlayChineseTimer);
     this.autoPlayChineseTimer = null;
+  },
+
+  getAudioPlayRoundLimit() {
+    const value = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
+    if (value === "loop") {
+      return Infinity;
+    }
+    return AUDIO_PLAY_COUNT_ROUNDS[value] || 1;
+  },
+
+  isAutoPlaySequenceActive(sequenceId) {
+    return Boolean(
+      this.autoPlaySequence &&
+      this.autoPlaySequence.id === sequenceId &&
+      this.autoPlaySequenceId === sequenceId
+    );
+  },
+
+  isCurrentAutoPlaySentence(sequence) {
+    const currentSentence = this.data.currentSentence;
+    return Boolean(sequence && currentSentence && currentSentence._id === sequence.sentenceId);
+  },
+
+  buildAutoPlaySequence(sentence) {
+    const countValue = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
+    return {
+      id: this.autoPlaySequenceId,
+      sentenceId: sentence._id,
+      englishText: String(sentence.english || ""),
+      chineseText: String(sentence.chinese || "").trim(),
+      audioMode: sentence.audioMode,
+      audioUrl: sentence.audioUrl || "",
+      round: 1,
+      maxRounds: this.getAudioPlayRoundLimit(),
+      loop: countValue === "loop",
+      phase: "english",
+    };
+  },
+
+  canAutoPlayChinese(sequence) {
+    return Boolean(
+      sequence &&
+      sequence.chineseText &&
+      this.data.settings &&
+      this.data.settings.speakChinese
+    );
+  },
+
+  async resolveAutoPlaySentenceAudio(sequence) {
+    if (!sequence) {
+      return "";
+    }
+    if (sequence.audioUrl) {
+      return sequence.audioUrl;
+    }
+    const sentenceIndex = this.sentenceIndexMap[sequence.sentenceId];
+    const cachedSentence = Number.isInteger(sentenceIndex) ? this.fullSentences[sentenceIndex] : null;
+    if (cachedSentence && cachedSentence.audioUrl) {
+      sequence.audioUrl = cachedSentence.audioUrl;
+      return cachedSentence.audioUrl;
+    }
+    if (sequence.audioMode !== "tts") {
+      return "";
+    }
+    const audioUrl = await getSentenceTtsPath(sequence.englishText);
+    this.patchSentenceAudio(sequence.sentenceId, audioUrl);
+    if (this.autoPlaySequence && this.autoPlaySequence.id === sequence.id) {
+      this.autoPlaySequence.audioUrl = audioUrl;
+    }
+    return audioUrl;
+  },
+
+  async playAutoPlayEnglish(sequence) {
+    if (!sequence || !this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+      return;
+    }
+    this.autoPlaySequence = {
+      ...sequence,
+      phase: "english",
+    };
+    const requestId = this.audioRequestId + 1;
+    this.audioRequestId = requestId;
+    try {
+      const audioUrl = await this.resolveAutoPlaySentenceAudio(sequence);
+      if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+        return;
+      }
+      if (!this.playAudio(audioUrl, requestId)) {
+        this.clearPendingAutoPlaySequence();
+      }
+    } catch (err) {
+      if (!this.isAutoPlaySequenceActive(sequence.id)) {
+        return;
+      }
+      console.error("[home] auto sentence audio failed", err);
+      this.clearPendingAutoPlaySequence();
+      wx.showToast({
+        title: getAudioErrorMessage(err),
+        icon: "none",
+      });
+    }
+  },
+
+  scheduleAutoPlayChinese(sequence) {
+    if (!sequence || !this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+      return;
+    }
+    this.autoPlaySequence = {
+      ...sequence,
+      phase: "wait_chinese",
+    };
+    this.autoPlayChineseTimer = setTimeout(async () => {
+      this.autoPlayChineseTimer = null;
+      if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+        return;
+      }
+
+      const chineseRequestId = this.audioRequestId + 1;
+      this.audioRequestId = chineseRequestId;
+      this.autoPlaySequence = {
+        ...this.autoPlaySequence,
+        phase: "chinese",
+      };
+
+      try {
+        const chineseAudioUrl = await getChineseTtsPath(sequence.chineseText);
+        if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+          return;
+        }
+        if (!this.playAudio(chineseAudioUrl, chineseRequestId)) {
+          this.clearPendingAutoPlaySequence();
+        }
+      } catch (err) {
+        if (!this.isAutoPlaySequenceActive(sequence.id)) {
+          return;
+        }
+        console.error("[home] auto chinese audio failed", err);
+        this.clearPendingAutoPlaySequence();
+        wx.showToast({
+          title: getAudioErrorMessage(err),
+          icon: "none",
+        });
+      }
+    }, AUTO_PLAY_CHINESE_DELAY_MS);
+  },
+
+  async advanceAutoPlayRound(sequenceId) {
+    if (!this.isAutoPlaySequenceActive(sequenceId)) {
+      return;
+    }
+    const sequence = this.autoPlaySequence;
+    if (!sequence || !this.isCurrentAutoPlaySentence(sequence)) {
+      return;
+    }
+    if (!sequence.loop && sequence.round >= sequence.maxRounds) {
+      this.clearPendingAutoPlaySequence();
+      return;
+    }
+    const nextSequence = {
+      ...sequence,
+      round: sequence.round + 1,
+      phase: "english",
+    };
+    this.autoPlaySequence = nextSequence;
+    await this.playAutoPlayEnglish(nextSequence);
+  },
+
+  handleAutoPlayAudioEvent(event) {
+    const sequence = this.autoPlaySequence;
+    if (!sequence || !event || event.owner !== this.audioOwner) {
+      return;
+    }
+    if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
+      return;
+    }
+    if (event.type === "error") {
+      this.clearPendingAutoPlaySequence();
+      return;
+    }
+    if (event.type !== "ended") {
+      return;
+    }
+
+    if (sequence.phase === "english") {
+      if (this.canAutoPlayChinese(sequence)) {
+        this.scheduleAutoPlayChinese(sequence);
+        return;
+      }
+      this.advanceAutoPlayRound(sequence.id);
+      return;
+    }
+
+    if (sequence.phase === "chinese") {
+      this.advanceAutoPlayRound(sequence.id);
+    }
   },
 
   buildSentenceViewModel(sentence, settings) {
@@ -498,6 +713,7 @@ Page({
     if (!this.requireActionAuth()) {
       return;
     }
+    this.advanceRequestId += 1;
     const nextIndex = this.data.currentIndex - 1;
     if (nextIndex < 0) {
       wx.showToast({
@@ -523,8 +739,10 @@ Page({
     this.updateSentenceAtIndex(currentIndex, {
       mastered,
     });
-    await saveSentenceState(currentSentence._id, {
+    saveSentenceState(currentSentence._id, {
       mastered,
+    }).catch((err) => {
+      console.error("[home] save sentence state failed", err);
     });
 
     const nextIndex = currentIndex + 1;
@@ -535,13 +753,20 @@ Page({
       });
       return;
     }
-    const allowed = await this.ensureSentenceAccess(nextIndex);
-    if (!allowed) {
-      return;
-    }
+    const requestId = this.advanceRequestId + 1;
+    this.advanceRequestId = requestId;
     this.setActiveIndex(nextIndex, {
       autoPlayAfterRender: this.data.settings.autoPlayAudio,
     });
+
+    const allowed = await this.ensureSentenceAccess(nextIndex);
+    if (requestId !== this.advanceRequestId) {
+      return;
+    }
+    if (!allowed) {
+      this.setActiveIndex(currentIndex);
+      return;
+    }
   },
 
   async onMarkMastered() {
@@ -630,59 +855,9 @@ Page({
     }
 
     this.clearPendingAutoPlaySequence();
-    const sequenceId = this.autoPlaySequenceId;
-    const requestId = this.audioRequestId + 1;
-    this.audioRequestId = requestId;
-
-    try {
-      const audioUrl = await this.resolveSentenceAudio(sentence);
-      if (sequenceId !== this.autoPlaySequenceId || requestId !== this.audioRequestId) {
-        return;
-      }
-      this.playAudio(audioUrl, requestId);
-    } catch (err) {
-      if (sequenceId !== this.autoPlaySequenceId || requestId !== this.audioRequestId) {
-        return;
-      }
-      console.error("[home] auto sentence audio failed", err);
-      wx.showToast({
-        title: getAudioErrorMessage(err),
-        icon: "none",
-      });
-      return;
-    }
-
-    const chineseText = String(sentence.chinese || "").trim();
-    if (!this.data.settings.speakChinese || !chineseText) {
-      return;
-    }
-
-    this.autoPlayChineseTimer = setTimeout(async () => {
-      this.autoPlayChineseTimer = null;
-      if (sequenceId !== this.autoPlaySequenceId) {
-        return;
-      }
-
-      const chineseRequestId = this.audioRequestId + 1;
-      this.audioRequestId = chineseRequestId;
-
-      try {
-        const chineseAudioUrl = await getChineseTtsPath(chineseText);
-        if (sequenceId !== this.autoPlaySequenceId || chineseRequestId !== this.audioRequestId) {
-          return;
-        }
-        this.playAudio(chineseAudioUrl, chineseRequestId);
-      } catch (err) {
-        if (sequenceId !== this.autoPlaySequenceId || chineseRequestId !== this.audioRequestId) {
-          return;
-        }
-        console.error("[home] auto chinese audio failed", err);
-        wx.showToast({
-          title: getAudioErrorMessage(err),
-          icon: "none",
-        });
-      }
-    }, AUTO_PLAY_CHINESE_DELAY_MS);
+    const sequence = this.buildAutoPlaySequence(sentence);
+    this.autoPlaySequence = sequence;
+    await this.playAutoPlayEnglish(sequence);
   },
 
   async onPlayChineseAudio(e) {
@@ -723,7 +898,7 @@ Page({
         title: "暂无音频",
         icon: "none",
       });
-      return;
+      return false;
     }
     const activeRequestId = requestId || this.audioRequestId + 1;
     this.audioRequestId = activeRequestId;
@@ -732,6 +907,7 @@ Page({
       playbackRate: Number(this.data.settings.playRate || 1),
       owner: this.audioOwner,
     });
+    return true;
   },
 
   async buildWordModalDetail(word, detail) {

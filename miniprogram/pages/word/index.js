@@ -12,34 +12,12 @@ const {
   batchGetWordMarks,
   getWordMarkMeta,
   normalizeWordKey,
-  setWordMark,
 } = require("../../utils/word-mark");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const SEARCH_DEBOUNCE_MS = 300;
 const FILTER_ALL = "all";
-const FILTER_FAVORITED = "favorited";
 const FILTER_CUSTOM_TAGGED = "customTagged";
-
-function isTruthy(value) {
-  return value === true || value === "true" || value === 1 || value === "1";
-}
-
-function patchWordMarkState(list = [], wordKey = "", patch = {}) {
-  return list.map((item) => {
-    if (normalizeWordKey(item.word) !== wordKey) {
-      return item;
-    }
-    return {
-      ...item,
-      ...patch,
-    };
-  });
-}
-
-function removeWordByKey(list = [], wordKey = "") {
-  return list.filter((item) => normalizeWordKey(item.word) !== wordKey);
-}
 
 Page({
   data: {
@@ -431,121 +409,6 @@ Page({
     wx.navigateTo({
       url: `/pages/word-detail/index?word=${encodeURIComponent(word)}`,
     });
-  },
-
-  updateWordMarkState(word, patch = {}) {
-    const wordKey = normalizeWordKey(word);
-    if (!wordKey) {
-      return;
-    }
-    this.setData({
-      visibleWords: patchWordMarkState(this.data.visibleWords, wordKey, patch),
-      searchResults: patchWordMarkState(this.data.searchResults, wordKey, patch),
-    });
-  },
-
-  removeWordFromFilteredListIfNeeded(word, state = {}) {
-    if (this.isSearchMode()) {
-      return;
-    }
-    const filter = this.getEffectiveFilter();
-    const wordKey = normalizeWordKey(word);
-    if (!wordKey) {
-      return;
-    }
-    if (filter === FILTER_FAVORITED && !state.favorited) {
-      this.setData({
-        visibleWords: removeWordByKey(this.data.visibleWords, wordKey),
-      });
-    }
-    if (filter === FILTER_CUSTOM_TAGGED && !state.customTagged) {
-      this.setData({
-        visibleWords: removeWordByKey(this.data.visibleWords, wordKey),
-      });
-    }
-  },
-
-  async onToggleFavorite(e) {
-    if (!this.requireActionAuth()) {
-      return;
-    }
-    const { word, favorited } = e.currentTarget.dataset;
-    if (!word) {
-      return;
-    }
-    const previousVisibleWords = this.data.visibleWords.slice();
-    const previousSearchResults = this.data.searchResults.slice();
-    const nextFavorited = !isTruthy(favorited);
-    this.updateWordMarkState(word, {
-      favorited: nextFavorited,
-    });
-    try {
-      const state = await setWordMark({
-        word,
-        favorited: nextFavorited,
-      });
-      this.updateWordMarkState(word, {
-        favorited: state.favorited,
-        customTagged: state.customTagged,
-      });
-      this.removeWordFromFilteredListIfNeeded(word, state);
-      this.syncWordMarkMeta({
-        forceRefresh: true,
-        skipReload: true,
-      });
-    } catch (err) {
-      this.setData({
-        visibleWords: previousVisibleWords,
-        searchResults: previousSearchResults,
-      });
-      wx.showToast({
-        title: "更新收藏失败",
-        icon: "none",
-      });
-    }
-  },
-
-  async onToggleCustomTag(e) {
-    if (!this.requireActionAuth()) {
-      return;
-    }
-    if (!this.data.isVip) {
-      return;
-    }
-    const { word, customtagged } = e.currentTarget.dataset;
-    if (!word) {
-      return;
-    }
-    const previousVisibleWords = this.data.visibleWords.slice();
-    const previousSearchResults = this.data.searchResults.slice();
-    const nextCustomTagged = !isTruthy(customtagged);
-    this.updateWordMarkState(word, {
-      customTagged: nextCustomTagged,
-    });
-    try {
-      const state = await setWordMark({
-        word,
-        customTagged: nextCustomTagged,
-      });
-      this.updateWordMarkState(word, {
-        favorited: state.favorited,
-        customTagged: state.customTagged,
-      });
-      this.removeWordFromFilteredListIfNeeded(word, state);
-      this.syncWordMarkMeta({
-        forceRefresh: true,
-        skipReload: true,
-      });
-    } catch (err) {
-      this.setData({
-        visibleWords: previousVisibleWords,
-        searchResults: previousSearchResults,
-      });
-      wx.showToast({
-        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
-        icon: "none",
-      });
-    }
   },
 
   async onPlayAudio(e) {

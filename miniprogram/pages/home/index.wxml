@@ -3,7 +3,7 @@
   <view wx:elif="{{error}}" class="state-text">{{error}}</view>
 
   <view wx:elif="{{currentSentence}}" class="content">
-    <view class="card-stage" catchtouchmove="noop">
+    <view class="card-stage" catchtouchstart="noop" catchtouchmove="noop" catchtouchend="noop">
       <swiper
         class="card-swiper"
         current="{{swiperCurrent}}"
@@ -12,6 +12,9 @@
         skip-hidden-item-layout="{{true}}"
         enable-back-to-top="{{false}}"
         disable-touch="{{true}}"
+        catchtouchstart="noop"
+        catchtouchmove="noop"
+        catchtouchend="noop"
         bindchange="onSwiperChange"
       >
         <swiper-item wx:for="{{sentences}}" wx:key="_id">
@@ -19,15 +22,19 @@
             <view class="card-shell" bindtap="onTapImage" data-index="{{index}}">
               <image class="card-bg" src="{{item.resolvedImageUrl}}" mode="widthFix" bindload="onImageLoad" binderror="onImageError" />
               <view class="card-overlay"></view>
-              <view class="top-actions">
-                <image class="icon-btn" wx:if="{{currentSentence && currentSentence._id === item._id}}" src="/assets/icon/icon_sound_open.svg" catchtap="onPlaySentenceAudio" />
-                <image class="icon-btn" wx:if="{{currentSentence && currentSentence._id === item._id}}" src="{{item.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" catchtap="onToggleFavorited" />
-              </view>
 
               <view class="card-bottom" catchtap="noop">
                 <view class="card-bottom-mask"></view>
                 <view class="card-bottom-content {{item.showChinese ? 'content-expanded' : 'content-collapsed'}}">
-                  <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
+                  <view class="progress-row">
+                    <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
+                    <image
+                      wx:if="{{currentSentence && currentSentence._id === item._id}}"
+                      class="card-audio-btn"
+                      src="/assets/icon/icon_sound_open.svg"
+                      catchtap="onPlaySentenceAudio"
+                    />
+                  </view>
                   <view class="sentence-line">
                     <block wx:for="{{item.englishTokens}}" wx:key="index">
                       <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
@@ -46,14 +53,19 @@
     </view>
 
     <view class="bottom-actions">
-      <view class="action-btn action-btn-back {{currentIndex === 0 ? 'action-btn-disabled' : ''}}" bindtap="onGoBack">
-        返回
+      <view class="action-btn action-btn-circle {{currentIndex === 0 ? 'action-btn-disabled' : ''}}" bindtap="onGoBack">
+        <image class="action-icon action-icon-small" src="/assets/icon/icon_previous.svg" />
       </view>
-      <view class="action-btn action-btn-mastered {{currentSentence && currentSentence.mastered === true ? 'action-btn-active' : ''}}" bindtap="onMarkMastered">
-        已掌握
+      <view class="action-btn action-btn-wide action-btn-unmastered {{currentSentence && currentSentence.mastered === false ? 'action-btn-active' : ''}}" bindtap="onMarkUnmastered">
+        <text class="action-symbol">×</text>
+        <text class="action-label">未掌握</text>
       </view>
-      <view class="action-btn action-btn-unmastered {{currentSentence && currentSentence.mastered === false ? 'action-btn-active' : ''}}" bindtap="onMarkUnmastered">
-        未掌握
+      <view class="action-btn action-btn-wide action-btn-mastered {{currentSentence && currentSentence.mastered === true ? 'action-btn-active' : ''}}" bindtap="onMarkMastered">
+        <text class="action-symbol">✓</text>
+        <text class="action-label">已掌握</text>
+      </view>
+      <view class="action-btn action-btn-circle {{currentSentence && currentSentence.favorited ? 'action-btn-favorited' : ''}}" bindtap="onToggleFavorited">
+        <image class="action-icon" src="{{currentSentence && currentSentence.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" />
       </view>
     </view>
 

@@ -319,6 +319,7 @@ App({
       settings: {
         autoPlayAudio: false,
         speakChinese: false,
+        audioPlayCount: "1",
         defaultShowChinese: false,
         playRate: 1,
         voiceGender: "female",

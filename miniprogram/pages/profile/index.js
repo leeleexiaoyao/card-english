@@ -20,6 +20,12 @@ const VOICE_GENDER_OPTIONS = [
   { label: "女声", value: "female" },
   { label: "男声", value: "male" },
 ];
+const AUDIO_PLAY_COUNT_OPTIONS = [
+  { label: "1次", value: "1" },
+  { label: "3次", value: "3" },
+  { label: "5次", value: "5" },
+  { label: "循环", value: "loop" },
+];
 
 Page({
   data: {
@@ -38,6 +44,10 @@ Page({
     memberLabel: "普通用户",
     freeRemainingCount: 2,
     settings: getSettings(),
+    audioPlayCountOptions: AUDIO_PLAY_COUNT_OPTIONS,
+    audioPlayCountLabels: AUDIO_PLAY_COUNT_OPTIONS.map((item) => item.label),
+    audioPlayCountIndex: 0,
+    audioPlayCountLabel: "1次",
     rateOptions: RATE_OPTIONS,
     playRateLabels: RATE_OPTIONS.map((item) => `${item}x`),
     playRateIndex: 1,
@@ -62,6 +72,8 @@ Page({
       freeRemainingCount: getRemainingFreeCount(this.data.profile, getCurrentDateKey()),
       customWordTagName:
         (this.data.profile && this.data.profile.customWordTagName) || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      audioPlayCountIndex: this.getAudioPlayCountIndex(settings.audioPlayCount),
+      audioPlayCountLabel: this.getAudioPlayCountLabel(settings.audioPlayCount),
       playRateIndex: this.getPlayRateIndex(settings.playRate),
       playRateLabel: this.getPlayRateLabel(settings.playRate),
       speechRateIndex: this.getSpeechRateIndex(settings.speechRate),
@@ -85,6 +97,16 @@ Page({
   getPlayRateIndex(rate) {
     const index = RATE_OPTIONS.findIndex((item) => item === rate);
     return index >= 0 ? index : 1;
+  },
+
+  getAudioPlayCountIndex(value) {
+    const index = AUDIO_PLAY_COUNT_OPTIONS.findIndex((item) => item.value === value);
+    return index >= 0 ? index : 0;
+  },
+
+  getAudioPlayCountLabel(value) {
+    const index = this.getAudioPlayCountIndex(value);
+    return this.data.audioPlayCountLabels[index];
   },
 
   getPlayRateLabel(rate) {
@@ -420,6 +442,25 @@ Page({
       settings,
       playRateIndex: index,
       playRateLabel: this.data.playRateLabels[index],
+    });
+  },
+
+  onAudioPlayCountPickerChange(e) {
+    if (!this.requireProfileAction()) {
+      return;
+    }
+    const index = Number(e.detail.value);
+    const target = AUDIO_PLAY_COUNT_OPTIONS[index];
+    if (!target) {
+      return;
+    }
+    const settings = updateSettings({
+      audioPlayCount: target.value,
+    });
+    this.setData({
+      settings,
+      audioPlayCountIndex: index,
+      audioPlayCountLabel: target.label,
     });
   },
 

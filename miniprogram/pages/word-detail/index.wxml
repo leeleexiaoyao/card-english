@@ -16,16 +16,23 @@
         </view>
       </view>
       <view class="hero-actions">
-        <view class="action-btn {{detail.favorited ? 'active' : ''}}" bindtap="onToggleFavorite">收藏</view>
+        <view class="favorite-btn {{detail.favorited ? 'active' : ''}}" bindtap="onToggleFavorite">
+          <image
+            class="favorite-icon"
+            src="{{detail.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}"
+            mode="aspectFit"
+          />
+        </view>
         <view
           wx:if="{{isVip}}"
-          class="action-btn {{detail.customTagged ? 'active custom' : ''}}"
+          class="custom-tag-btn {{detail.customTagged ? 'active' : ''}}"
           bindtap="onToggleCustomTag"
         >
-          {{customWordTagName}}
+          <text class="custom-tag-plus">+</text>
+          <text class="custom-tag-label">{{customWordTagName}}</text>
         </view>
         <view wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">
-          <text class="play-icon-text">播</text>
+          <image class="play-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
         </view>
       </view>
     </view>
