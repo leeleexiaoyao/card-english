@@ -2,6 +2,13 @@ const { getSettings } = require("../../utils/settings");
 const { getWordDetail } = require("../../utils/dictionary");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 const { tokenizeSentence } = require("../../utils/word");
+const {
+  DEFAULT_CUSTOM_WORD_TAG_NAME,
+  batchGetWordMarks,
+  getWordMarkMeta,
+  normalizeWordKey,
+  setWordMark,
+} = require("../../utils/word-mark");
 
 function buildHighlightTargets(detail = {}) {
   const targets = new Set();
@@ -34,6 +41,17 @@ function decorateRelatedCards(detail = {}) {
   }));
 }
 
+function decorateWordDetail(detail = {}, markState = {}) {
+  const relatedCards = decorateRelatedCards(detail);
+  return {
+    ...detail,
+    relatedCards,
+    hasRelatedCards: relatedCards.length > 0,
+    favorited: Boolean(markState.favorited || detail.favorited),
+    customTagged: Boolean(markState.customTagged || detail.customTagged),
+  };
+}
+
 Page({
   data: {
     loading: true,
@@ -41,6 +59,8 @@ Page({
     word: "",
     settings: getSettings(),
     detail: null,
+    isVip: false,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
   },
 
   onLoad(options) {
@@ -56,6 +76,7 @@ Page({
     this.setData({
       settings: getSettings(),
     });
+    this.refreshWordMarkMeta();
   },
 
   onHide() {
@@ -64,6 +85,39 @@ Page({
 
   onUnload() {
     stopAudio(this.audioOwner);
+  },
+
+  requireActionAuth() {
+    const app = getApp();
+    if (!app || typeof app.requireAuth !== "function") {
+      return true;
+    }
+    return app.requireAuth({
+      route: "pages/word-detail/index",
+      params: {
+        word: this.data.word,
+      },
+    });
+  },
+
+  async refreshWordMarkMeta() {
+    const detail = this.data.detail;
+    const word = detail && detail.word;
+    const meta = await getWordMarkMeta();
+    const nextData = {
+      isVip: Boolean(meta.isVip),
+      customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+    };
+    if (!word) {
+      this.setData(nextData);
+      return;
+    }
+    const markMap = await batchGetWordMarks([word]);
+    const markState = markMap[normalizeWordKey(word)] || {};
+    this.setData({
+      ...nextData,
+      detail: decorateWordDetail(detail, markState),
+    });
   },
 
   async loadDetail(word) {
@@ -79,14 +133,18 @@ Page({
       error: "",
     });
     try {
-      const detail = await getWordDetail(word);
-      const relatedCards = decorateRelatedCards(detail);
+      const [detail, meta, markMap] = await Promise.all([
+        getWordDetail(word),
+        getWordMarkMeta(),
+        batchGetWordMarks([word], {
+          forceRefresh: true,
+        }),
+      ]);
+      const markState = markMap[normalizeWordKey(word)] || {};
       this.setData({
-        detail: {
-          ...detail,
-          relatedCards,
-          hasRelatedCards: relatedCards.length > 0,
-        },
+        detail: decorateWordDetail(detail, markState),
+        isVip: Boolean(meta.isVip),
+        customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
       });
     } catch (err) {
       this.setData({
@@ -113,6 +171,85 @@ Page({
       playbackRate: Number(this.data.settings.playRate || 1),
       owner: this.audioOwner,
     });
+  },
+
+  async onToggleFavorite() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const detail = this.data.detail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextFavorited = !detail.favorited;
+    this.setData({
+      detail: {
+        ...detail,
+        favorited: nextFavorited,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        favorited: nextFavorited,
+      });
+      this.setData({
+        detail: {
+          ...this.data.detail,
+          favorited: state.favorited,
+          customTagged: state.customTagged,
+        },
+      });
+    } catch (err) {
+      this.setData({
+        detail,
+      });
+      wx.showToast({
+        title: "更新收藏失败",
+        icon: "none",
+      });
+    }
+  },
+
+  async onToggleCustomTag() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    if (!this.data.isVip) {
+      return;
+    }
+    const detail = this.data.detail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextCustomTagged = !detail.customTagged;
+    this.setData({
+      detail: {
+        ...detail,
+        customTagged: nextCustomTagged,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        customTagged: nextCustomTagged,
+      });
+      this.setData({
+        detail: {
+          ...this.data.detail,
+          favorited: state.favorited,
+          customTagged: state.customTagged,
+        },
+      });
+    } catch (err) {
+      this.setData({
+        detail,
+      });
+      wx.showToast({
+        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        icon: "none",
+      });
+    }
   },
 
   onTapRelatedCard(e) {

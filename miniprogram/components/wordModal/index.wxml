@@ -7,10 +7,22 @@
 
     <view class="modal-summary">
       <view class="word-line">
-        <text class="word-text">{{detail.word || queryWord || '-'}}</text>
-        <text wx:if="{{detail && detail.phonetic}}" class="phonetic-text">{{detail.phonetic}}</text>
-        <view wx:elif="{{loading}}" class="summary-skeleton summary-skeleton-short"></view>
-        <button wx:if="{{detail && detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
+        <view class="word-main">
+          <text class="word-text">{{detail.word || queryWord || '-'}}</text>
+          <text wx:if="{{detail && detail.phonetic}}" class="phonetic-text">{{detail.phonetic}}</text>
+          <view wx:elif="{{loading}}" class="summary-skeleton summary-skeleton-short"></view>
+        </view>
+        <view wx:if="{{detail}}" class="summary-actions">
+          <view class="action-btn {{detail.favorited ? 'active' : ''}}" catchtap="onToggleFavorite">收藏</view>
+          <view
+            wx:if="{{isVip}}"
+            class="action-btn {{detail.customTagged ? 'active custom' : ''}}"
+            catchtap="onToggleCustomTag"
+          >
+            {{customWordTagName}}
+          </view>
+          <button wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
+        </view>
       </view>
       <view wx:if="{{!loading && detail && detail.posText}}" class="meta-line">
         <text class="meta-tag">{{detail.posText}}</text>

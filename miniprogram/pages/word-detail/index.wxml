@@ -15,8 +15,18 @@
           <text class="meta-tag">{{detail.posText}}</text>
         </view>
       </view>
-      <view wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">
-        <text class="play-icon-text">播</text>
+      <view class="hero-actions">
+        <view class="action-btn {{detail.favorited ? 'active' : ''}}" bindtap="onToggleFavorite">收藏</view>
+        <view
+          wx:if="{{isVip}}"
+          class="action-btn {{detail.customTagged ? 'active custom' : ''}}"
+          bindtap="onToggleCustomTag"
+        >
+          {{customWordTagName}}
+        </view>
+        <view wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">
+          <text class="play-icon-text">播</text>
+        </view>
       </view>
     </view>
 

@@ -1,4 +1,33 @@
 <view class="page">
+  <view class="filter-row">
+    <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onChangeFilter">
+      <view class="filter-main">
+        <text class="filter-label">全部</text>
+        <text class="filter-count">{{counts.total}}</text>
+      </view>
+      <view class="filter-indicator"></view>
+    </view>
+    <view
+      wx:if="{{isVip}}"
+      class="filter-item {{activeFilter === 'customTagged' ? 'active' : ''}}"
+      data-filter="customTagged"
+      bindtap="onChangeFilter"
+    >
+      <view class="filter-main">
+        <text class="filter-label">{{customWordTagName}}</text>
+        <text class="filter-count">{{counts.customTagged}}</text>
+      </view>
+      <view class="filter-indicator"></view>
+    </view>
+    <view class="filter-item {{activeFilter === 'favorited' ? 'active' : ''}}" data-filter="favorited" bindtap="onChangeFilter">
+      <view class="filter-main">
+        <text class="filter-label">收藏</text>
+        <text class="filter-count">{{counts.favorited}}</text>
+      </view>
+      <view class="filter-indicator"></view>
+    </view>
+  </view>
+
   <view class="search-bar">
     <input
       class="search-input"
@@ -27,15 +56,31 @@
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
           <view class="translation-text">{{item.translationText}}</view>
-          <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
+          <view class="status-row">
+            <view wx:if="{{item.customTagged}}" class="custom-tag-chip">{{customWordTagName}}</view>
+            <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
+          </view>
         </view>
-        <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
+        <view class="action-group">
+          <view class="action-btn {{item.favorited ? 'active' : ''}}" catchtap="onToggleFavorite" data-word="{{item.word}}" data-favorited="{{item.favorited}}">
+            收藏
+          </view>
+          <view
+            wx:if="{{isVip}}"
+            class="action-btn {{item.customTagged ? 'active custom' : ''}}"
+            catchtap="onToggleCustomTag"
+            data-word="{{item.word}}"
+            data-customtagged="{{item.customTagged}}"
+          >
+            {{customWordTagName}}
+          </view>
+          <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
+        </view>
       </view>
     </block>
 
     <block wx:else>
       <view wx:if="{{!visibleWords.length}}" class="state-text">暂无单词</view>
-
       <view wx:for="{{visibleWords}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
         <view class="word-main">
           <view class="word-line">
@@ -44,9 +89,26 @@
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
           <view class="translation-text">{{item.translationText}}</view>
-          <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
+          <view class="status-row">
+            <view wx:if="{{item.customTagged}}" class="custom-tag-chip">{{customWordTagName}}</view>
+            <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
+          </view>
         </view>
-        <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
+        <view class="action-group">
+          <view class="action-btn {{item.favorited ? 'active' : ''}}" catchtap="onToggleFavorite" data-word="{{item.word}}" data-favorited="{{item.favorited}}">
+            收藏
+          </view>
+          <view
+            wx:if="{{isVip}}"
+            class="action-btn {{item.customTagged ? 'active custom' : ''}}"
+            catchtap="onToggleCustomTag"
+            data-word="{{item.word}}"
+            data-customtagged="{{item.customTagged}}"
+          >
+            {{customWordTagName}}
+          </view>
+          <view wx:if="{{item.audio}}" class="audio-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">播</view>
+        </view>
       </view>
 
       <view wx:if="{{hasMore && !loadingMore}}" class="load-more" bindtap="appendMoreWords">加载更多</view>

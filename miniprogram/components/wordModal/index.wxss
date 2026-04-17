@@ -56,9 +56,26 @@
 
 .word-line {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.word-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 14rpx;
+}
+
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
+  flex-shrink: 0;
 }
 
 .meta-line {
@@ -87,13 +104,40 @@
 }
 
 .play-btn {
-  margin: 0 0 0 auto;
+  margin: 0;
   background: #f5f7fa;
   color: #2f72ff;
   border-radius: 999rpx;
   font-size: 24rpx;
   padding: 10rpx 20rpx;
   line-height: 1.2;
+}
+
+.action-btn {
+  min-width: 96rpx;
+  height: 48rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #d4d9e2;
+  color: #637186;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.action-btn.active {
+  border-color: #2f72ff;
+  color: #2f72ff;
+  background: #edf3ff;
+}
+
+.action-btn.active.custom {
+  border-color: #e53935;
+  color: #e53935;
+  background: rgba(229, 57, 53, 0.1);
 }
 
 .section,

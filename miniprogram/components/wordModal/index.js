@@ -16,6 +16,14 @@ Component({
       type: Object,
       value: null,
     },
+    isVip: {
+      type: Boolean,
+      value: false,
+    },
+    customWordTagName: {
+      type: String,
+      value: "易错词",
+    },
     queryWord: {
       type: String,
       value: "",
@@ -31,6 +39,20 @@ Component({
       const detail = this.data.detail || {};
       this.triggerEvent("playaudio", {
         audio: detail.audio || "",
+      });
+    },
+    onToggleFavorite() {
+      const detail = this.data.detail || {};
+      this.triggerEvent("togglefavorite", {
+        word: detail.word || "",
+        favorited: Boolean(detail.favorited),
+      });
+    },
+    onToggleCustomTag() {
+      const detail = this.data.detail || {};
+      this.triggerEvent("togglecustomtag", {
+        word: detail.word || "",
+        customTagged: Boolean(detail.customTagged),
       });
     },
     onOpenCard(e) {

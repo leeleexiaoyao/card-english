@@ -47,10 +47,10 @@
   <view wx:elif="{{error}}" class="state-text">{{error}}</view>
 
   <view wx:else class="list">
-    <view wx:if="{{!filteredSentences.length}}" class="state-text">暂无数据</view>
+    <view wx:if="{{!visibleSentences.length}}" class="state-text">暂无数据</view>
 
     <view
-      wx:for="{{filteredSentences}}"
+      wx:for="{{visibleSentences}}"
       wx:key="_id"
       class="list-item"
       data-id="{{item._id}}"
@@ -78,6 +78,9 @@
 
       <view class="audio-btn" catchtap="onPlayAudio" data-id="{{item._id}}">播</view>
     </view>
+
+    <view wx:if="{{hasMoreVisible && !loadingMore}}" class="load-more" bindtap="appendVisibleSentences">加载更多</view>
+    <view wx:if="{{loadingMore}}" class="load-more">加载中...</view>
   </view>
 
   <word-modal
@@ -85,9 +88,13 @@
     loading="{{wordModalLoading}}"
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
+    isVip="{{wordMarkMeta.isVip}}"
+    customWordTagName="{{wordMarkMeta.customWordTagName}}"
     queryWord="{{wordQuery}}"
     bind:close="onCloseWordModal"
     bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"
+    bind:togglefavorite="onToggleWordFavorite"
+    bind:togglecustomtag="onToggleWordCustomTag"
   />
 </view>

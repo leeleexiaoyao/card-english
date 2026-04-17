@@ -20,14 +20,14 @@
               <image class="card-bg" src="{{item.resolvedImageUrl}}" mode="widthFix" bindload="onImageLoad" binderror="onImageError" />
               <view class="card-overlay"></view>
               <view class="top-actions">
-                <image class="icon-btn" wx:if="{{currentIndex === index}}" src="/assets/icon/icon_sound_open.svg" catchtap="onPlaySentenceAudio" />
-                <image class="icon-btn" wx:if="{{currentIndex === index}}" src="{{item.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" catchtap="onToggleFavorited" />
+                <image class="icon-btn" wx:if="{{currentSentence && currentSentence._id === item._id}}" src="/assets/icon/icon_sound_open.svg" catchtap="onPlaySentenceAudio" />
+                <image class="icon-btn" wx:if="{{currentSentence && currentSentence._id === item._id}}" src="{{item.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}" catchtap="onToggleFavorited" />
               </view>
 
               <view class="card-bottom" catchtap="noop">
                 <view class="card-bottom-mask"></view>
                 <view class="card-bottom-content {{item.showChinese ? 'content-expanded' : 'content-collapsed'}}">
-                  <text class="progress">{{(index + 1) < 10 ? '0' + (index + 1) : (index + 1)}}/{{counts.total}}</text>
+                  <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
                   <view class="sentence-line">
                     <block wx:for="{{item.englishTokens}}" wx:key="index">
                       <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
@@ -65,9 +65,13 @@
     loading="{{wordModalLoading}}"
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
+    isVip="{{wordMarkMeta.isVip}}"
+    customWordTagName="{{wordMarkMeta.customWordTagName}}"
     queryWord="{{wordQuery}}"
     bind:close="onCloseWordModal"
     bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"
+    bind:togglefavorite="onToggleWordFavorite"
+    bind:togglecustomtag="onToggleWordCustomTag"
   />
 </view>

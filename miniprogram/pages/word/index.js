@@ -3,12 +3,43 @@ const {
   clearWordPageCache,
   fetchWordBatch,
   getWordPreview,
+  listMarkedWords,
   WORD_DEFAULT_PAGE_SIZE,
   searchWords,
 } = require("../../utils/word-cloud");
+const {
+  DEFAULT_CUSTOM_WORD_TAG_NAME,
+  batchGetWordMarks,
+  getWordMarkMeta,
+  normalizeWordKey,
+  setWordMark,
+} = require("../../utils/word-mark");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const SEARCH_DEBOUNCE_MS = 300;
+const FILTER_ALL = "all";
+const FILTER_FAVORITED = "favorited";
+const FILTER_CUSTOM_TAGGED = "customTagged";
+
+function isTruthy(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function patchWordMarkState(list = [], wordKey = "", patch = {}) {
+  return list.map((item) => {
+    if (normalizeWordKey(item.word) !== wordKey) {
+      return item;
+    }
+    return {
+      ...item,
+      ...patch,
+    };
+  });
+}
+
+function removeWordByKey(list = [], wordKey = "") {
+  return list.filter((item) => normalizeWordKey(item.word) !== wordKey);
+}
 
 Page({
   data: {
@@ -18,6 +49,14 @@ Page({
     error: "",
     settings: getSettings(),
     keyword: "",
+    activeFilter: FILTER_ALL,
+    counts: {
+      total: 0,
+      favorited: 0,
+      customTagged: 0,
+    },
+    isVip: false,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     visibleWords: [],
     searchResults: [],
     page: 0,
@@ -25,17 +64,27 @@ Page({
     hasMore: true,
   },
 
-  onLoad() {
+  async onLoad() {
     this.audioOwner = createAudioOwner("word");
     this.audioRequestId = 0;
     this.searchTimer = null;
     this.searchRequestId = 0;
+    await this.syncWordMarkMeta({
+      forceRefresh: true,
+      skipReload: true,
+    });
     this.loadWords();
   },
 
   onShow() {
     this.setData({
       settings: getSettings(),
+    });
+    this.syncWordMarkMeta({
+      forceRefresh: false,
+      skipReload: true,
+    }).then(() => {
+      this.refreshCurrentWordMarks();
     });
   },
 
@@ -60,7 +109,6 @@ Page({
       : this.loadWords({
           forceRefresh: true,
         });
-
     Promise.resolve(task).finally(() => {
       wx.stopPullDownRefresh();
     });
@@ -95,11 +143,65 @@ Page({
     return Boolean(String(this.data.keyword || "").trim());
   },
 
+  getEffectiveFilter() {
+    if (!this.data.isVip && this.data.activeFilter === FILTER_CUSTOM_TAGGED) {
+      return FILTER_ALL;
+    }
+    return this.data.activeFilter;
+  },
+
+  async syncWordMarkMeta(options = {}) {
+    const forceRefresh = Boolean(options.forceRefresh);
+    const skipReload = Boolean(options.skipReload);
+    const previousFilter = this.data.activeFilter;
+    const meta = await getWordMarkMeta({
+      forceRefresh,
+    });
+    const nextData = {
+      isVip: Boolean(meta.isVip),
+      customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      counts: {
+        total: Number((meta.counts && meta.counts.total) || 0),
+        favorited: Number((meta.counts && meta.counts.favorited) || 0),
+        customTagged: Number((meta.counts && meta.counts.customTagged) || 0),
+      },
+    };
+    if (!nextData.isVip && this.data.activeFilter === FILTER_CUSTOM_TAGGED) {
+      nextData.activeFilter = FILTER_ALL;
+    }
+    this.setData(nextData);
+    if (nextData.activeFilter === FILTER_ALL && previousFilter !== FILTER_ALL && !skipReload && !this.isSearchMode()) {
+      await this.loadWords();
+    }
+    return nextData;
+  },
+
+  async decorateWordListWithMarks(list = [], options = {}) {
+    if (!Array.isArray(list) || !list.length) {
+      return [];
+    }
+    const marks = await batchGetWordMarks(
+      list.map((item) => item.word),
+      {
+        forceRefresh: Boolean(options.forceRefresh),
+      }
+    );
+    return list.map((item) => {
+      const state = marks[normalizeWordKey(item.word)] || {};
+      return {
+        ...item,
+        favorited: Boolean(Object.prototype.hasOwnProperty.call(state, "favorited") ? state.favorited : item.favorited),
+        customTagged: Boolean(
+          Object.prototype.hasOwnProperty.call(state, "customTagged") ? state.customTagged : item.customTagged
+        ),
+      };
+    });
+  },
+
   async loadWords(options = {}) {
     if (options.forceRefresh) {
       clearWordPageCache();
     }
-
     this.setData({
       loading: true,
       error: "",
@@ -107,16 +209,25 @@ Page({
       hasMore: true,
       settings: getSettings(),
     });
-
     try {
-      const result = await fetchWordBatch({
-        page: 0,
-        pageSize: this.data.pageSize,
+      const filter = this.getEffectiveFilter();
+      const result =
+        filter === FILTER_ALL
+          ? await fetchWordBatch({
+              page: 0,
+              pageSize: this.data.pageSize,
+              forceRefresh: Boolean(options.forceRefresh),
+            })
+          : await listMarkedWords({
+              filter,
+              page: 0,
+              pageSize: this.data.pageSize,
+            });
+      const list = await this.decorateWordListWithMarks(result.list, {
         forceRefresh: Boolean(options.forceRefresh),
       });
-
       this.setData({
-        visibleWords: result.list,
+        visibleWords: list,
         page: 1,
         hasMore: result.hasMore,
       });
@@ -124,7 +235,7 @@ Page({
       this.setData({
         visibleWords: [],
         hasMore: false,
-        error: "加载单词失败，请先把词库导入 words 集合",
+        error: "加载词库失败，请检查 words 集合数据",
       });
     } finally {
       this.setData({
@@ -141,19 +252,25 @@ Page({
     if (!hasMore || loadingMore) {
       return;
     }
-
     this.setData({
       loadingMore: true,
     });
-
     try {
-      const result = await fetchWordBatch({
-        page,
-        pageSize,
-      });
-
+      const filter = this.getEffectiveFilter();
+      const result =
+        filter === FILTER_ALL
+          ? await fetchWordBatch({
+              page,
+              pageSize,
+            })
+          : await listMarkedWords({
+              filter,
+              page,
+              pageSize,
+            });
+      const appendedList = await this.decorateWordListWithMarks(result.list);
       this.setData({
-        visibleWords: visibleWords.concat(result.list),
+        visibleWords: visibleWords.concat(appendedList),
         page: page + 1,
         hasMore: result.hasMore,
       });
@@ -169,6 +286,48 @@ Page({
     }
   },
 
+  refreshCurrentWordMarks() {
+    const requests = [];
+    if (this.data.visibleWords.length) {
+      requests.push(
+        this.decorateWordListWithMarks(this.data.visibleWords).then((visibleWords) => {
+          this.setData({
+            visibleWords,
+          });
+        })
+      );
+    }
+    if (this.data.searchResults.length) {
+      requests.push(
+        this.decorateWordListWithMarks(this.data.searchResults).then((searchResults) => {
+          this.setData({
+            searchResults,
+          });
+        })
+      );
+    }
+    return Promise.all(requests);
+  },
+
+  onChangeFilter(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const { filter } = e.currentTarget.dataset;
+    if (!filter || filter === this.data.activeFilter) {
+      return;
+    }
+    if (filter === FILTER_CUSTOM_TAGGED && !this.data.isVip) {
+      return;
+    }
+    this.setData({
+      activeFilter: filter,
+    });
+    if (!this.isSearchMode()) {
+      this.loadWords();
+    }
+  },
+
   onSearchInput(e) {
     if (!this.requireActionAuth()) {
       return;
@@ -177,10 +336,8 @@ Page({
     this.setData({
       keyword,
     });
-
     const normalizedKeyword = keyword.trim();
     this.clearSearchTimer();
-
     if (!normalizedKeyword) {
       this.searchRequestId += 1;
       this.setData({
@@ -190,7 +347,6 @@ Page({
       });
       return;
     }
-
     this.searchTimer = setTimeout(() => {
       this.executeSearch(normalizedKeyword);
     }, SEARCH_DEBOUNCE_MS);
@@ -202,7 +358,6 @@ Page({
     }
     const keyword = String((e.detail && e.detail.value) || this.data.keyword || "").trim();
     this.clearSearchTimer();
-
     if (!keyword) {
       this.setData({
         keyword: "",
@@ -212,7 +367,6 @@ Page({
       });
       return;
     }
-
     this.executeSearch(keyword);
   },
 
@@ -233,19 +387,20 @@ Page({
   async executeSearch(keyword) {
     const requestId = this.searchRequestId + 1;
     this.searchRequestId = requestId;
-
     this.setData({
       searching: true,
       error: "",
     });
-
     try {
       const result = await searchWords(keyword);
       if (requestId !== this.searchRequestId) {
         return;
       }
+      const searchResults = await this.decorateWordListWithMarks(result.list, {
+        forceRefresh: true,
+      });
       this.setData({
-        searchResults: result.list,
+        searchResults,
       });
     } catch (err) {
       if (requestId !== this.searchRequestId) {
@@ -278,6 +433,121 @@ Page({
     });
   },
 
+  updateWordMarkState(word, patch = {}) {
+    const wordKey = normalizeWordKey(word);
+    if (!wordKey) {
+      return;
+    }
+    this.setData({
+      visibleWords: patchWordMarkState(this.data.visibleWords, wordKey, patch),
+      searchResults: patchWordMarkState(this.data.searchResults, wordKey, patch),
+    });
+  },
+
+  removeWordFromFilteredListIfNeeded(word, state = {}) {
+    if (this.isSearchMode()) {
+      return;
+    }
+    const filter = this.getEffectiveFilter();
+    const wordKey = normalizeWordKey(word);
+    if (!wordKey) {
+      return;
+    }
+    if (filter === FILTER_FAVORITED && !state.favorited) {
+      this.setData({
+        visibleWords: removeWordByKey(this.data.visibleWords, wordKey),
+      });
+    }
+    if (filter === FILTER_CUSTOM_TAGGED && !state.customTagged) {
+      this.setData({
+        visibleWords: removeWordByKey(this.data.visibleWords, wordKey),
+      });
+    }
+  },
+
+  async onToggleFavorite(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const { word, favorited } = e.currentTarget.dataset;
+    if (!word) {
+      return;
+    }
+    const previousVisibleWords = this.data.visibleWords.slice();
+    const previousSearchResults = this.data.searchResults.slice();
+    const nextFavorited = !isTruthy(favorited);
+    this.updateWordMarkState(word, {
+      favorited: nextFavorited,
+    });
+    try {
+      const state = await setWordMark({
+        word,
+        favorited: nextFavorited,
+      });
+      this.updateWordMarkState(word, {
+        favorited: state.favorited,
+        customTagged: state.customTagged,
+      });
+      this.removeWordFromFilteredListIfNeeded(word, state);
+      this.syncWordMarkMeta({
+        forceRefresh: true,
+        skipReload: true,
+      });
+    } catch (err) {
+      this.setData({
+        visibleWords: previousVisibleWords,
+        searchResults: previousSearchResults,
+      });
+      wx.showToast({
+        title: "更新收藏失败",
+        icon: "none",
+      });
+    }
+  },
+
+  async onToggleCustomTag(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    if (!this.data.isVip) {
+      return;
+    }
+    const { word, customtagged } = e.currentTarget.dataset;
+    if (!word) {
+      return;
+    }
+    const previousVisibleWords = this.data.visibleWords.slice();
+    const previousSearchResults = this.data.searchResults.slice();
+    const nextCustomTagged = !isTruthy(customtagged);
+    this.updateWordMarkState(word, {
+      customTagged: nextCustomTagged,
+    });
+    try {
+      const state = await setWordMark({
+        word,
+        customTagged: nextCustomTagged,
+      });
+      this.updateWordMarkState(word, {
+        favorited: state.favorited,
+        customTagged: state.customTagged,
+      });
+      this.removeWordFromFilteredListIfNeeded(word, state);
+      this.syncWordMarkMeta({
+        forceRefresh: true,
+        skipReload: true,
+      });
+    } catch (err) {
+      this.setData({
+        visibleWords: previousVisibleWords,
+        searchResults: previousSearchResults,
+      });
+      wx.showToast({
+        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        icon: "none",
+      });
+    }
+  },
+
   async onPlayAudio(e) {
     if (!this.requireActionAuth()) {
       return;
@@ -286,7 +556,6 @@ Page({
     let targetAudio = audio;
     const requestId = this.audioRequestId + 1;
     this.audioRequestId = requestId;
-
     if (!targetAudio && word) {
       try {
         const preview = await getWordPreview(word);
@@ -301,7 +570,6 @@ Page({
         targetAudio = "";
       }
     }
-
     if (!targetAudio) {
       wx.showToast({
         title: "暂无音频",
@@ -309,7 +577,6 @@ Page({
       });
       return;
     }
-
     this.playAudio(targetAudio, requestId);
   },
 

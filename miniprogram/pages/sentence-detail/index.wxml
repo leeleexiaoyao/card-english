@@ -59,9 +59,13 @@
     loading="{{wordModalLoading}}"
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
+    isVip="{{wordMarkMeta.isVip}}"
+    customWordTagName="{{wordMarkMeta.customWordTagName}}"
     queryWord="{{wordQuery}}"
     bind:close="onCloseWordModal"
     bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"
+    bind:togglefavorite="onToggleWordFavorite"
+    bind:togglecustomtag="onToggleWordCustomTag"
   />
 </view>

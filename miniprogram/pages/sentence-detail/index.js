@@ -8,6 +8,13 @@ const {
 const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
+const {
+  DEFAULT_CUSTOM_WORD_TAG_NAME,
+  batchGetWordMarks,
+  getWordMarkMeta,
+  normalizeWordKey,
+  setWordMark,
+} = require("../../utils/word-mark");
 const { getSentenceTtsPath, getChineseTtsPath } = require("../../utils/tts");
 const { consumeSentenceAccess } = require("../../utils/membership");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
@@ -42,6 +49,10 @@ Page({
     wordModalError: "",
     wordDetail: null,
     wordQuery: "",
+    wordMarkMeta: {
+      isVip: false,
+      customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
+    },
   },
 
   onLoad(options) {
@@ -70,6 +81,20 @@ Page({
     this.clearPendingAutoPlaySequence();
     this.audioRequestId += 1;
     stopAudio(this.audioOwner);
+  },
+
+  requireActionAuth() {
+    const app = getApp();
+    if (!app || typeof app.requireAuth !== "function") {
+      return true;
+    }
+    return app.requireAuth({
+      route: "pages/sentence-detail/index",
+      params: {
+        id: this.data.sentenceId,
+        source: this.data.source,
+      },
+    });
   },
 
   clearPendingAutoPlaySequence() {
@@ -543,7 +568,31 @@ Page({
     });
   },
 
+  async buildWordModalDetail(word, detail) {
+    const [meta, markMap] = await Promise.all([
+      getWordMarkMeta(),
+      batchGetWordMarks([word], {
+        forceRefresh: true,
+      }),
+    ]);
+    const state = markMap[normalizeWordKey(word)] || {};
+    return {
+      detail: {
+        ...detail,
+        favorited: Boolean(state.favorited || detail.favorited),
+        customTagged: Boolean(state.customTagged || detail.customTagged),
+      },
+      wordMarkMeta: {
+        isVip: Boolean(meta.isVip),
+        customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      },
+    };
+  },
+
   async onTapWord(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { word } = e.currentTarget.dataset;
     if (!word) {
       return;
@@ -559,8 +608,10 @@ Page({
 
     try {
       const detail = await getWordDetail(word);
+      const modalData = await this.buildWordModalDetail(word, detail);
       this.setData({
-        wordDetail: detail,
+        wordDetail: modalData.detail,
+        wordMarkMeta: modalData.wordMarkMeta,
       });
     } catch (err) {
       this.setData({
@@ -581,11 +632,96 @@ Page({
   },
 
   onPlayWordAudio(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     this.clearPendingAutoPlaySequence();
     this.playAudio(e.detail.audio);
   },
 
+  async onToggleWordFavorite() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextFavorited = !Boolean(detail.favorited);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        favorited: nextFavorited,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        favorited: nextFavorited,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: "更新收藏失败",
+        icon: "none",
+      });
+    }
+  },
+
+  async onToggleWordCustomTag() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    if (!this.data.wordMarkMeta.isVip) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextCustomTagged = !Boolean(detail.customTagged);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        customTagged: nextCustomTagged,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        customTagged: nextCustomTagged,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        icon: "none",
+      });
+    }
+  },
+
   onOpenWordCard(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
     const { id } = (e && e.detail) || {};
     if (!id) {
       return;

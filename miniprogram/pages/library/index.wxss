@@ -182,3 +182,10 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+.load-more {
+  margin: 12rpx 0 24rpx;
+  text-align: center;
+  color: #888888;
+  font-size: 24rpx;
+}

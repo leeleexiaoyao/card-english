@@ -11,10 +11,18 @@ const {
 const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
+const {
+  DEFAULT_CUSTOM_WORD_TAG_NAME,
+  batchGetWordMarks,
+  getWordMarkMeta,
+  normalizeWordKey,
+  setWordMark,
+} = require("../../utils/word-mark");
 const { getSentenceTtsPath, getChineseTtsPath } = require("../../utils/tts");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const SENTENCE_DETAIL_CONTEXT_KEY = "sentence_detail_context_v1";
+const LIBRARY_PAGE_SIZE = 30;
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -32,8 +40,7 @@ Page({
     loading: true,
     error: "",
     settings: getSettings(),
-    allSentences: [],
-    filteredSentences: [],
+    visibleSentences: [],
     counts: {
       total: 0,
       mastered: 0,
@@ -47,16 +54,26 @@ Page({
       english: true,
       chinese: true,
     },
+    pageSize: LIBRARY_PAGE_SIZE,
+    hasMoreVisible: false,
+    loadingMore: false,
     wordModalVisible: false,
     wordModalLoading: false,
     wordModalError: "",
     wordDetail: null,
     wordQuery: "",
+    wordMarkMeta: {
+      isVip: false,
+      customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
+    },
   },
 
   onLoad() {
     this.audioOwner = createAudioOwner("library");
     this.audioRequestId = 0;
+    this.fullSentences = [];
+    this.filteredSentenceIds = [];
+    this.sentenceIndexMap = {};
     this.loadData({
       showLoading: true,
       syncRemoteState: true,
@@ -77,10 +94,14 @@ Page({
   },
 
   onShow() {
-    if (!this.data.allSentences.length) {
+    if (!this.fullSentences.length) {
       return;
     }
     this.refreshPageStateFromLocal();
+  },
+
+  onReachBottom() {
+    this.appendVisibleSentences();
   },
 
   requireActionAuth() {
@@ -104,26 +125,87 @@ Page({
     stopAudio(this.audioOwner);
   },
 
-  buildSentenceViewModel(sentence) {
+  buildSentenceViewModel(sentence, index, options = {}) {
+    const tokenizeForDisplay = Boolean(options.tokenizeForDisplay);
     return {
       ...sentence,
+      globalIndex: index,
       resolvedImageUrl: resolveImageUrl(sentence),
+      englishTokens: tokenizeForDisplay ? tokenizeSentence(sentence.english) : [],
     };
+  },
+
+  rebuildSentenceIndexMap() {
+    this.sentenceIndexMap = this.fullSentences.reduce((map, item, index) => {
+      map[item._id] = index;
+      return map;
+    }, {});
+  },
+
+  buildFilteredSentenceIds(activeFilter = this.data.activeFilter) {
+    return this.fullSentences
+      .filter((item) => {
+        if (activeFilter === "mastered") {
+          return item.mastered === true;
+        }
+        if (activeFilter === "unmastered") {
+          return item.mastered === false;
+        }
+        if (activeFilter === "unlearned") {
+          return item.mastered == null;
+        }
+        if (activeFilter === "favorited") {
+          return item.favorited;
+        }
+        return true;
+      })
+      .map((item) => item._id);
+  },
+
+  buildVisibleSentenceList(count) {
+    return this.filteredSentenceIds
+      .slice(0, count)
+      .map((id) => {
+        const index = this.sentenceIndexMap[id];
+        const sentence = this.fullSentences[index];
+        if (!sentence) {
+          return null;
+        }
+        return this.buildSentenceViewModel(sentence, index, {
+          tokenizeForDisplay: true,
+        });
+      })
+      .filter(Boolean);
+  },
+
+  renderVisibleSentences(options = {}) {
+    const append = Boolean(options.append);
+    const currentCount = append ? this.data.visibleSentences.length : 0;
+    const nextCount = Math.min(currentCount + this.data.pageSize, this.filteredSentenceIds.length);
+    this.setData({
+      visibleSentences: this.buildVisibleSentenceList(nextCount),
+      hasMoreVisible: nextCount < this.filteredSentenceIds.length,
+      loadingMore: false,
+      ...(options.extraData || {}),
+    });
+    this.ensurePreviewImageUrls();
   },
 
   refreshPageStateFromLocal() {
     const settings = getSettings();
     const stateMap = getLocalSentenceStateMap();
-    const allSentences = mergeSentencesWithState(this.data.allSentences, stateMap).map((item) =>
-      this.buildSentenceViewModel(item)
+    this.fullSentences = mergeSentencesWithState(this.fullSentences, stateMap).map((item, index) =>
+      this.buildSentenceViewModel(item, index)
     );
-    this.setData({
-      settings,
-      allSentences,
-      counts: buildCounts(allSentences),
-      error: "",
+    this.rebuildSentenceIndexMap();
+    this.filteredSentenceIds = this.buildFilteredSentenceIds(this.data.activeFilter);
+    this.renderVisibleSentences({
+      extraData: {
+        settings,
+        counts: buildCounts(this.fullSentences),
+        error: "",
+      },
     });
-    this.applyFilter();
   },
 
   async loadData(options = {}) {
@@ -133,60 +215,60 @@ Page({
       loading: showLoading,
       error: "",
       settings: getSettings(),
+      loadingMore: false,
     });
     try {
       const sentences = await fetchSentences({
         resolveImages: false,
       });
-      const sentenceIds = sentences.map((item) => item._id);
-      const stateMap = await fetchUserStateMap(sentenceIds, {
-        preferLocal: !syncRemoteState,
-      });
-      const allSentences = mergeSentencesWithState(sentences, stateMap).map((item) =>
-        this.buildSentenceViewModel(item)
+      const stateMap = getLocalSentenceStateMap();
+      this.fullSentences = mergeSentencesWithState(sentences, stateMap).map((item, index) =>
+        this.buildSentenceViewModel(item, index)
       );
-      this.setData({
-        allSentences,
-        counts: buildCounts(allSentences),
+      this.rebuildSentenceIndexMap();
+      this.filteredSentenceIds = this.buildFilteredSentenceIds(this.data.activeFilter);
+      this.renderVisibleSentences({
+        extraData: {
+          counts: buildCounts(this.fullSentences),
+          loading: false,
+        },
       });
-      this.applyFilter();
+      if (syncRemoteState) {
+        this.syncSentenceStatesFromRemote(sentences.map((item) => item._id));
+      }
     } catch (err) {
       this.setData({
         error: "加载句库失败，请稍后重试",
+        loading: false,
       });
-    } finally {
-      if (showLoading) {
-        this.setData({
-          loading: false,
-        });
-      }
     }
   },
 
-  applyFilter() {
-    const { allSentences, activeFilter } = this.data;
-    let list = allSentences.slice();
-    if (activeFilter === "mastered") {
-      list = list.filter((item) => item.mastered === true);
-    } else if (activeFilter === "unmastered") {
-      list = list.filter((item) => item.mastered === false);
-    } else if (activeFilter === "unlearned") {
-      list = list.filter((item) => item.mastered == null);
-    } else if (activeFilter === "favorited") {
-      list = list.filter((item) => item.favorited);
+  async syncSentenceStatesFromRemote(sentenceIds = []) {
+    if (!sentenceIds.length || !this.fullSentences.length) {
+      return;
     }
-
-    this.setData({
-      filteredSentences: list.map((item) => ({
-        ...item,
-        englishTokens: tokenizeSentence(item.english),
-      })),
-    });
-    this.ensurePreviewImageUrls();
+    try {
+      const stateMap = await fetchUserStateMap(sentenceIds, {
+        preferLocal: false,
+      });
+      this.fullSentences = mergeSentencesWithState(this.fullSentences, stateMap).map((item, index) =>
+        this.buildSentenceViewModel(item, index)
+      );
+      this.rebuildSentenceIndexMap();
+      this.filteredSentenceIds = this.buildFilteredSentenceIds(this.data.activeFilter);
+      this.renderVisibleSentences({
+        extraData: {
+          counts: buildCounts(this.fullSentences),
+        },
+      });
+    } catch (err) {
+      console.error("[library] syncSentenceStatesFromRemote failed", err);
+    }
   },
 
   ensurePreviewImageUrls() {
-    const previewList = this.data.filteredSentences.slice(0, 12);
+    const previewList = this.data.visibleSentences.slice(0, 12);
     const cloudFileIds = previewList
       .map((item) => item.imageUrl)
       .filter((url) => url && url.startsWith("cloud://"));
@@ -217,21 +299,23 @@ Page({
     if (!sentenceId || !resolvedImageUrl) {
       return;
     }
-
-    const updateList = (list) =>
-      list.map((item) => {
-        if (item._id !== sentenceId) {
-          return item;
-        }
-        return {
-          ...item,
-          resolvedImageUrl,
-        };
-      });
-
+    const targetIndex = this.sentenceIndexMap[sentenceId];
+    if (!Number.isInteger(targetIndex) || !this.fullSentences[targetIndex]) {
+      return;
+    }
+    this.fullSentences[targetIndex] = {
+      ...this.fullSentences[targetIndex],
+      resolvedImageUrl,
+    };
     this.setData({
-      allSentences: updateList(this.data.allSentences),
-      filteredSentences: updateList(this.data.filteredSentences),
+      visibleSentences: this.data.visibleSentences.map((item) =>
+        item._id === sentenceId
+          ? {
+              ...item,
+              resolvedImageUrl,
+            }
+          : item
+      ),
     });
   },
 
@@ -246,7 +330,8 @@ Page({
     this.setData({
       activeFilter: filter,
     });
-    this.applyFilter();
+    this.filteredSentenceIds = this.buildFilteredSentenceIds(filter);
+    this.renderVisibleSentences();
   },
 
   onToggleDisplay(e) {
@@ -285,7 +370,7 @@ Page({
     wx.setStorageSync(SENTENCE_DETAIL_CONTEXT_KEY, {
       source: "library",
       filter: this.data.activeFilter,
-      ids: this.data.filteredSentences.map((item) => item._id),
+      ids: this.filteredSentenceIds.slice(),
       updatedAt: Date.now(),
     });
     wx.navigateTo({
@@ -293,24 +378,39 @@ Page({
     });
   },
 
+  appendVisibleSentences() {
+    if (!this.data.hasMoreVisible || this.data.loadingMore) {
+      return;
+    }
+    this.setData({
+      loadingMore: true,
+    });
+    this.renderVisibleSentences({
+      append: true,
+    });
+  },
+
   patchSentenceAudio(sentenceId, audioUrl) {
     if (!sentenceId || !audioUrl) {
       return;
     }
-    const updateList = (list) =>
-      list.map((item) => {
-        if (item._id !== sentenceId) {
-          return item;
-        }
-        return {
-          ...item,
-          audioUrl,
-        };
-      });
-
+    const targetIndex = this.sentenceIndexMap[sentenceId];
+    if (!Number.isInteger(targetIndex) || !this.fullSentences[targetIndex]) {
+      return;
+    }
+    this.fullSentences[targetIndex] = {
+      ...this.fullSentences[targetIndex],
+      audioUrl,
+    };
     this.setData({
-      allSentences: updateList(this.data.allSentences),
-      filteredSentences: updateList(this.data.filteredSentences),
+      visibleSentences: this.data.visibleSentences.map((item) =>
+        item._id === sentenceId
+          ? {
+              ...item,
+              audioUrl,
+            }
+          : item
+      ),
     });
   },
 
@@ -334,7 +434,7 @@ Page({
       return;
     }
     const { id } = e.currentTarget.dataset;
-    const sentence = this.data.filteredSentences.find((item) => item._id === id);
+    const sentence = this.data.visibleSentences.find((item) => item._id === id);
     if (!sentence) {
       return;
     }
@@ -403,6 +503,27 @@ Page({
     });
   },
 
+  async buildWordModalDetail(word, detail) {
+    const [meta, markMap] = await Promise.all([
+      getWordMarkMeta(),
+      batchGetWordMarks([word], {
+        forceRefresh: true,
+      }),
+    ]);
+    const state = markMap[normalizeWordKey(word)] || {};
+    return {
+      detail: {
+        ...detail,
+        favorited: Boolean(state.favorited || detail.favorited),
+        customTagged: Boolean(state.customTagged || detail.customTagged),
+      },
+      wordMarkMeta: {
+        isVip: Boolean(meta.isVip),
+        customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      },
+    };
+  },
+
   async onTapWord(e) {
     if (!this.requireActionAuth()) {
       return;
@@ -421,8 +542,10 @@ Page({
 
     try {
       const detail = await getWordDetail(word);
+      const modalData = await this.buildWordModalDetail(word, detail);
       this.setData({
-        wordDetail: detail,
+        wordDetail: modalData.detail,
+        wordMarkMeta: modalData.wordMarkMeta,
       });
     } catch (err) {
       this.setData({
@@ -447,6 +570,85 @@ Page({
       return;
     }
     this.playAudio(e.detail.audio);
+  },
+
+  async onToggleWordFavorite() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextFavorited = !Boolean(detail.favorited);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        favorited: nextFavorited,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        favorited: nextFavorited,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: "更新收藏失败",
+        icon: "none",
+      });
+    }
+  },
+
+  async onToggleWordCustomTag() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    if (!this.data.wordMarkMeta.isVip) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextCustomTagged = !Boolean(detail.customTagged);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        customTagged: nextCustomTagged,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        customTagged: nextCustomTagged,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        icon: "none",
+      });
+    }
   },
 
   onOpenWordCard(e) {

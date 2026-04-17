@@ -5,6 +5,58 @@
   box-sizing: border-box;
 }
 
+.filter-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18rpx 28rpx;
+  margin-top: 16rpx;
+  margin-bottom: 18rpx;
+}
+
+.filter-item {
+  min-width: 138rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  color: #8b8b8b;
+  padding: 8rpx 0 0;
+}
+
+.filter-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+
+.filter-label {
+  font-size: 32rpx;
+  line-height: 1.1;
+}
+
+.filter-count {
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.filter-item.active {
+  color: #202020;
+  font-weight: 600;
+}
+
+.filter-indicator {
+  width: 64rpx;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: transparent;
+}
+
+.filter-item.active .filter-indicator {
+  background: #202020;
+}
+
 .search-bar {
   margin-bottom: 18rpx;
   padding: 14rpx 18rpx;
@@ -48,6 +100,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16rpx;
 }
 
 .word-main {
@@ -92,8 +145,25 @@
   overflow: hidden;
 }
 
-.tag-text {
+.status-row {
   margin-top: 8rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.custom-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(229, 57, 53, 0.12);
+  color: #d8433f;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.tag-text {
   font-size: 22rpx;
   color: #7f8797;
   line-height: 1.4;
@@ -101,6 +171,41 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  min-width: 88rpx;
+  height: 46rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #d4d9e2;
+  color: #637186;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.action-btn.active {
+  border-color: #2f72ff;
+  color: #2f72ff;
+  background: #edf3ff;
+}
+
+.action-btn.active.custom {
+  border-color: #e53935;
+  color: #e53935;
+  background: rgba(229, 57, 53, 0.1);
 }
 
 .audio-btn {

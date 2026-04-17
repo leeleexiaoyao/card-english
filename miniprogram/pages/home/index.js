@@ -12,12 +12,20 @@ const {
 const { getSettings } = require("../../utils/settings");
 const { tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
+const {
+  DEFAULT_CUSTOM_WORD_TAG_NAME,
+  batchGetWordMarks,
+  getWordMarkMeta,
+  normalizeWordKey,
+  setWordMark,
+} = require("../../utils/word-mark");
 const { getSentenceTtsPath, getChineseTtsPath } = require("../../utils/tts");
 const { consumeSentenceAccess } = require("../../utils/membership");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
 
 const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
 const AUTO_PLAY_CHINESE_DELAY_MS = 1000;
+const HOME_WINDOW_SIZE = 5;
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -52,6 +60,10 @@ Page({
     wordModalError: "",
     wordDetail: null,
     wordQuery: "",
+    wordMarkMeta: {
+      isVip: false,
+      customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
+    },
   },
 
   onLoad() {
@@ -59,9 +71,11 @@ Page({
     this.audioRequestId = 0;
     this.autoPlaySequenceId = 0;
     this.autoPlayChineseTimer = null;
-    this.programmaticSwiperTarget = null;
     this.initialSentenceAccessDone = false;
     this.initialSentenceAccessPromise = null;
+    this.fullSentences = [];
+    this.sentenceIndexMap = {};
+    this.windowStart = 0;
     // 立即显示加载状态
     this.setData({
       loading: true,
@@ -100,6 +114,7 @@ Page({
   buildSentenceViewModel(sentence, settings) {
     return {
       ...sentence,
+      globalIndex: Number(sentence.globalIndex),
       englishTokens: tokenizeSentence(sentence.english),
       showChinese:
         typeof sentence.showChinese === "boolean"
@@ -111,7 +126,7 @@ Page({
   },
 
   onShow() {
-    if (!this.data.sentences.length) {
+    if (!this.fullSentences.length) {
       return;
     }
     this.refreshPageStateFromLocal();
@@ -131,88 +146,58 @@ Page({
   refreshPageStateFromLocal() {
     const settings = getSettings();
     const stateMap = getLocalSentenceStateMap();
-    const merged = mergeSentencesWithState(this.data.sentences, stateMap).map((item) =>
-      this.buildSentenceViewModel(item, settings)
+    this.fullSentences = mergeSentencesWithState(this.fullSentences, stateMap).map((item, index) =>
+      this.buildSentenceViewModel(
+        {
+          ...item,
+          globalIndex: index,
+        },
+        settings
+      )
     );
-    const counts = buildCounts(merged);
-    const previousId = this.data.currentSentence ? this.data.currentSentence._id : "";
-    let currentIndex = merged.findIndex((item) => item._id === previousId);
-    if (currentIndex < 0) {
-      currentIndex = 0;
-    }
-
-    this.setData({
-      settings,
-      sentences: merged,
-      counts,
-      error: "",
+    this.rebuildSentenceIndexMap();
+    this.renderVisibleSentenceWindow(this.data.currentIndex, {
+      extraData: {
+        settings,
+        counts: buildCounts(this.fullSentences),
+        error: "",
+      },
     });
-    this.setActiveIndex(currentIndex, false);
   },
-
-
 
   async loadPageData(options = {}) {
     const syncRemoteState = options.syncRemoteState !== false;
-    
+
     try {
       const settings = getSettings();
-      
-      // 1. 先用仓库层的归一化结果快速首屏，避免直接吃旧缓存里的失效图片地址
-      const bootstrapSentences = await fetchSentences({
+      const rawSentences = await fetchSentences({
         resolveImages: false,
       });
-
-      if (bootstrapSentences && bootstrapSentences.length) {
-        const stateMap = getLocalSentenceStateMap();
-        const merged = mergeSentencesWithState(bootstrapSentences, stateMap).map((item) =>
-          this.buildSentenceViewModel(item, settings)
-        );
-        const counts = buildCounts(merged);
-        
-        this.setData({
+      const stateMap = getLocalSentenceStateMap();
+      this.fullSentences = mergeSentencesWithState(rawSentences, stateMap).map((item, index) =>
+        this.buildSentenceViewModel(
+          {
+            ...item,
+            globalIndex: index,
+          },
+          settings
+        )
+      );
+      this.rebuildSentenceIndexMap();
+      this.renderVisibleSentenceWindow(this.data.currentIndex, {
+        extraData: {
           settings,
-          sentences: merged,
-          counts,
+          counts: buildCounts(this.fullSentences),
           error: "",
           loading: false,
-        });
-        this.setActiveIndex(0, false);
-        this.consumeInitialSentenceAccess();
-      }
-      
-      // 2. 异步获取最新数据（包括图片URL和用户状态）
-      const freshSentences = await fetchSentences({
-        resolveImages: false,
+        },
       });
-      
-      const sentenceIds = freshSentences.map((item) => item._id);
-      const stateMap = await fetchUserStateMap(sentenceIds, {
-        preferLocal: !syncRemoteState,
-      });
-      
-      const merged = mergeSentencesWithState(freshSentences, stateMap).map((item) =>
-        this.buildSentenceViewModel(item, settings)
-      );
-      const counts = buildCounts(merged);
-      const previousId = this.data.currentSentence ? this.data.currentSentence._id : "";
-      let currentIndex = merged.findIndex((item) => item._id === previousId);
-      if (currentIndex < 0) {
-        currentIndex = 0;
-      }
-
-      // 3. 更新UI为最新数据
-      this.setData({
-        settings,
-        sentences: merged,
-        counts,
-        error: "",
-        loading: false,
-      });
-      this.setActiveIndex(currentIndex, false);
       this.consumeInitialSentenceAccess();
+      if (syncRemoteState) {
+        this.syncSentenceStatesFromRemote(rawSentences.map((item) => item._id));
+      }
     } catch (err) {
-      console.error('[home] loadPageData failed', err);
+      console.error("[home] loadPageData failed", err);
       this.setData({
         error: "加载失败，请稍后重试",
         loading: false,
@@ -220,52 +205,119 @@ Page({
     }
   },
 
-  setActiveIndex(index, syncSwiper = true) {
-    const { sentences } = this.data;
-    if (!sentences.length || index < 0 || index >= sentences.length) {
+  rebuildSentenceIndexMap() {
+    this.sentenceIndexMap = this.fullSentences.reduce((map, item, index) => {
+      map[item._id] = index;
+      return map;
+    }, {});
+  },
+
+  getSafeActiveIndex(index) {
+    if (!this.fullSentences.length) {
+      return 0;
+    }
+    const value = Number(index);
+    if (Number.isNaN(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(value, this.fullSentences.length - 1));
+  },
+
+  buildWindowMeta(centerIndex) {
+    const total = this.fullSentences.length;
+    const size = Math.min(HOME_WINDOW_SIZE, total);
+    const safeIndex = this.getSafeActiveIndex(centerIndex);
+    let start = Math.max(0, safeIndex - Math.floor(size / 2));
+    const maxStart = Math.max(0, total - size);
+    start = Math.min(start, maxStart);
+    return {
+      start,
+      end: start + size,
+      current: safeIndex - start,
+      safeIndex,
+    };
+  },
+
+  renderVisibleSentenceWindow(index, options = {}) {
+    if (!this.fullSentences.length) {
       this.setData({
+        sentences: [],
         currentSentence: null,
+        currentIndex: 0,
+        swiperCurrent: 0,
+        ...(options.extraData || {}),
       });
       return;
     }
 
-    const nextData = {
-      currentIndex: index,
-      currentSentence: sentences[index],
-    };
-    if (syncSwiper) {
-      nextData.swiperCurrent = index;
-    }
-    this.setData(nextData);
-
-    // 懒加载当前及相邻卡片图片，并回写到页面数据
-    this.ensureVisibleImageUrls(index);
+    const meta = this.buildWindowMeta(index);
+    this.windowStart = meta.start;
+    const sentences = this.fullSentences.slice(meta.start, meta.end);
+    this.setData({
+      sentences,
+      currentSentence: sentences[meta.current] || null,
+      currentIndex: meta.safeIndex,
+      swiperCurrent: meta.current,
+      ...(options.extraData || {}),
+    }, () => {
+      this.ensureVisibleImageUrls();
+      if (options.autoPlayAfterRender) {
+        this.startAutoPlaySequence();
+      }
+    });
   },
 
-  ensureVisibleImageUrls(currentIndex) {
+  setActiveIndex(index, options = {}) {
+    if (!this.fullSentences.length) {
+      return;
+    }
+    this.renderVisibleSentenceWindow(index, options);
+  },
+
+  async syncSentenceStatesFromRemote(sentenceIds = []) {
+    if (!sentenceIds.length || !this.fullSentences.length) {
+      return;
+    }
+    try {
+      const stateMap = await fetchUserStateMap(sentenceIds, {
+        preferLocal: false,
+      });
+      const settings = this.data.settings || getSettings();
+      this.fullSentences = mergeSentencesWithState(this.fullSentences, stateMap).map((item, index) =>
+        this.buildSentenceViewModel(
+          {
+            ...item,
+            globalIndex: index,
+          },
+          settings
+        )
+      );
+      this.rebuildSentenceIndexMap();
+      this.renderVisibleSentenceWindow(this.data.currentIndex, {
+        extraData: {
+          counts: buildCounts(this.fullSentences),
+        },
+      });
+    } catch (err) {
+      console.error("[home] syncSentenceStatesFromRemote failed", err);
+    }
+  },
+
+  ensureVisibleImageUrls() {
     const { sentences } = this.data;
     if (!sentences.length) {
       return;
     }
 
-    const preloadIndexes = [];
-    // 只预加载当前和前后 2 张，优先首屏稳定
-    for (let i = currentIndex - 2; i <= currentIndex + 2; i++) {
-      if (i >= 0 && i < sentences.length) {
-        preloadIndexes.push(i);
-      }
-    }
-
-    const cloudFileIds = preloadIndexes
-      .map((index) => sentences[index].imageUrl)
+    const cloudFileIds = sentences
+      .map((item) => item.imageUrl)
       .filter((url) => url && url.startsWith("cloud://"));
 
     if (cloudFileIds.length) {
       preloadImageUrls(cloudFileIds);
     }
 
-    preloadIndexes.forEach((targetIndex) => {
-      const sentence = this.data.sentences[targetIndex];
+    sentences.forEach((sentence, localIndex) => {
       if (!sentence || !sentence.imageUrl || !sentence.imageUrl.startsWith("cloud://")) {
         return;
       }
@@ -278,19 +330,27 @@ Page({
           if (!localPath || localPath === sentence.resolvedImageUrl) {
             return;
           }
-          const list = this.data.sentences.slice();
-          if (!list[targetIndex]) {
+          const globalIndex = Number(sentence.globalIndex);
+          if (Number.isNaN(globalIndex) || !this.fullSentences[globalIndex]) {
             return;
           }
-          list[targetIndex] = {
-            ...list[targetIndex],
+          this.fullSentences[globalIndex] = {
+            ...this.fullSentences[globalIndex],
+            resolvedImageUrl: localPath,
+          };
+          const list = this.data.sentences.slice();
+          if (!list[localIndex]) {
+            return;
+          }
+          list[localIndex] = {
+            ...list[localIndex],
             resolvedImageUrl: localPath,
           };
           const patch = {
             sentences: list,
           };
-          if (this.data.currentIndex === targetIndex) {
-            patch.currentSentence = list[targetIndex];
+          if (this.data.currentSentence && this.data.currentSentence._id === sentence._id) {
+            patch.currentSentence = list[localIndex];
           }
           this.setData(patch);
         })
@@ -310,38 +370,27 @@ Page({
   },
 
   updateSentenceAtIndex(index, patch) {
-    const { sentences } = this.data;
-    if (index < 0 || index >= sentences.length) {
+    if (index < 0 || index >= this.fullSentences.length) {
       return null;
     }
-    const updated = sentences.slice();
-    updated[index] = {
-      ...updated[index],
+    this.fullSentences[index] = {
+      ...this.fullSentences[index],
       ...patch,
     };
-    this.setData({
-      sentences: updated,
-      currentSentence: updated[this.data.currentIndex],
-      counts: buildCounts(updated),
+    this.renderVisibleSentenceWindow(this.data.currentIndex, {
+      extraData: {
+        counts: buildCounts(this.fullSentences),
+      },
     });
-    return updated[index];
+    return this.fullSentences[index];
   },
 
   onSwiperChange(e) {
-    const nextIndex = e.detail.current;
-    if (nextIndex === this.data.currentIndex) {
-      return;
-    }
-    if (nextIndex !== this.programmaticSwiperTarget) {
+    const meta = this.buildWindowMeta(this.data.currentIndex);
+    if (e.detail.current !== meta.current) {
       this.setData({
-        swiperCurrent: this.data.currentIndex,
+        swiperCurrent: meta.current,
       });
-      return;
-    }
-    this.programmaticSwiperTarget = null;
-    this.setActiveIndex(nextIndex, false);
-    if (this.data.settings.autoPlayAudio) {
-      this.startAutoPlaySequence();
     }
   },
 
@@ -355,13 +404,16 @@ Page({
       return;
     }
     const sentence = this.data.sentences[targetIndex];
+    if (!sentence) {
+      return;
+    }
     if (!this.data.imageHintDismissed) {
       wx.setStorageSync(HOME_IMAGE_HINT_DISMISSED_KEY, true);
       this.setData({
         imageHintDismissed: true,
       });
     }
-    this.updateSentenceAtIndex(targetIndex, {
+    this.updateSentenceAtIndex(sentence.globalIndex, {
       showChinese: !sentence.showChinese,
     });
   },
@@ -370,7 +422,7 @@ Page({
 
   async ensureSentenceAccess(targetIndex) {
     await this.ensureInitialSentenceAccessReady();
-    const sentence = this.data.sentences[targetIndex];
+    const sentence = this.fullSentences[targetIndex];
     if (!sentence) {
       return false;
     }
@@ -408,7 +460,7 @@ Page({
       this.initialSentenceAccessDone = true;
       return;
     }
-    const firstSentence = this.data.sentences[0];
+    const firstSentence = this.fullSentences[0];
     if (!firstSentence || !firstSentence._id) {
       this.initialSentenceAccessDone = true;
       return;
@@ -454,9 +506,8 @@ Page({
       });
       return;
     }
-    this.programmaticSwiperTarget = nextIndex;
-    this.setData({
-      swiperCurrent: nextIndex,
+    this.setActiveIndex(nextIndex, {
+      autoPlayAfterRender: this.data.settings.autoPlayAudio,
     });
   },
 
@@ -464,7 +515,7 @@ Page({
     if (!this.requireActionAuth()) {
       return;
     }
-    const { currentSentence, currentIndex, sentences } = this.data;
+    const { currentSentence, currentIndex } = this.data;
     if (!currentSentence) {
       return;
     }
@@ -477,7 +528,7 @@ Page({
     });
 
     const nextIndex = currentIndex + 1;
-    if (nextIndex >= sentences.length) {
+    if (nextIndex >= this.fullSentences.length) {
       wx.showToast({
         title: "已完成全部标记",
         icon: "none",
@@ -488,9 +539,8 @@ Page({
     if (!allowed) {
       return;
     }
-    this.programmaticSwiperTarget = nextIndex;
-    this.setData({
-      swiperCurrent: nextIndex,
+    this.setActiveIndex(nextIndex, {
+      autoPlayAfterRender: this.data.settings.autoPlayAudio,
     });
   },
 
@@ -523,8 +573,8 @@ Page({
     if (!sentenceId || !audioUrl) {
       return;
     }
-    const targetIndex = this.data.sentences.findIndex((item) => item._id === sentenceId);
-    if (targetIndex < 0) {
+    const targetIndex = this.sentenceIndexMap[sentenceId];
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) {
       return;
     }
     this.updateSentenceAtIndex(targetIndex, {
@@ -684,6 +734,28 @@ Page({
     });
   },
 
+  async buildWordModalDetail(word, detail) {
+    const [meta, markMap] = await Promise.all([
+      getWordMarkMeta(),
+      batchGetWordMarks([word], {
+        forceRefresh: true,
+      }),
+    ]);
+    const wordKey = normalizeWordKey(word);
+    const state = markMap[wordKey] || {};
+    return {
+      detail: {
+        ...detail,
+        favorited: Boolean(state.favorited || detail.favorited),
+        customTagged: Boolean(state.customTagged || detail.customTagged),
+      },
+      wordMarkMeta: {
+        isVip: Boolean(meta.isVip),
+        customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      },
+    };
+  },
+
   async onTapWord(e) {
     if (!this.requireActionAuth()) {
       return;
@@ -703,8 +775,10 @@ Page({
 
     try {
       const detail = await getWordDetail(word);
+      const modalData = await this.buildWordModalDetail(word, detail);
       this.setData({
-        wordDetail: detail,
+        wordDetail: modalData.detail,
+        wordMarkMeta: modalData.wordMarkMeta,
       });
     } catch (err) {
       this.setData({
@@ -730,6 +804,85 @@ Page({
     }
     this.clearPendingAutoPlaySequence();
     this.playAudio(e.detail.audio);
+  },
+
+  async onToggleWordFavorite() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextFavorited = !Boolean(detail.favorited);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        favorited: nextFavorited,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        favorited: nextFavorited,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: "更新收藏失败",
+        icon: "none",
+      });
+    }
+  },
+
+  async onToggleWordCustomTag() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    if (!this.data.wordMarkMeta.isVip) {
+      return;
+    }
+    const detail = this.data.wordDetail;
+    if (!detail || !detail.word) {
+      return;
+    }
+    const nextCustomTagged = !Boolean(detail.customTagged);
+    this.setData({
+      wordDetail: {
+        ...detail,
+        customTagged: nextCustomTagged,
+      },
+    });
+    try {
+      const state = await setWordMark({
+        word: detail.word,
+        customTagged: nextCustomTagged,
+      });
+      this.setData({
+        wordDetail: {
+          ...this.data.wordDetail,
+          favorited: Boolean(state.favorited),
+          customTagged: Boolean(state.customTagged),
+        },
+      });
+    } catch (err) {
+      this.setData({
+        wordDetail: detail,
+      });
+      wx.showToast({
+        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        icon: "none",
+      });
+    }
   },
 
   onOpenWordCard(e) {

@@ -96,6 +96,17 @@
         </view>
       </picker>
     </view>
+
+    <view class="setting-row clickable" bindtap="onEditCustomWordTagName">
+      <view class="row-main">
+        <view class="row-title">自定义标签名称</view>
+        <view class="row-sub">词库标记按钮与分类名称</view>
+      </view>
+      <view class="row-right">
+        <view class="row-value">{{customWordTagName}}</view>
+        <image class="more-arrow" src="/assets/icon/icon_more.svg" />
+      </view>
+    </view>
   </view>
 
   <view class="section-title">其他</view>

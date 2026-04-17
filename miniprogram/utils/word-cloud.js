@@ -1,13 +1,13 @@
-const { sentenceBank } = require("../data/sentenceBank");
-const { cardImagePool } = require("../data/cardImagePool");
 const { guessWordForms, tokenizeSentence } = require("./word");
 
 const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v6_";
 const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v7";
-const WORD_DEFAULT_PAGE_SIZE = 200;
-const WORD_MAX_PAGE_SIZE = 200;
+const WORD_DEFAULT_PAGE_SIZE = 50;
+const WORD_MAX_PAGE_SIZE = 100;
 const WORD_SEARCH_LIMIT = 50;
 const WORD_FUNCTION_NAME = "quickstartFunctions";
+let sentenceBankCache = null;
+let cardImagePoolCache = null;
 
 function hasCloudEnv() {
   const app = getApp();
@@ -182,6 +182,13 @@ function buildRelatedCards(item = {}) {
     return [];
   }
 
+  if (!sentenceBankCache) {
+    sentenceBankCache = require("../data/sentenceBank").sentenceBank;
+  }
+  if (!cardImagePoolCache) {
+    cardImagePoolCache = require("../data/cardImagePool").cardImagePool;
+  }
+
   const forms = parseForms(item.exchange, word);
   const targets = new Set([word]);
   forms.forEach((form) => {
@@ -191,12 +198,12 @@ function buildRelatedCards(item = {}) {
     }
   });
 
-  return sentenceBank
+  return sentenceBankCache
     .map((sentence, index) => {
       const order = sentence.order || index + 1;
       const fallbackImageUrl =
-        Array.isArray(cardImagePool) && order > 0 && order <= cardImagePool.length
-          ? cardImagePool[order - 1]
+        Array.isArray(cardImagePoolCache) && order > 0 && order <= cardImagePoolCache.length
+          ? cardImagePoolCache[order - 1]
           : "";
       return {
         id: sentence.id || sentence._id || `sentence-${order}`,
@@ -225,6 +232,8 @@ function normalizeListItem(item = {}) {
     tagText: cleanText(item.tag),
     chineseMeaning: summarizeMeaning(item),
     pos: cleanText(item.pos),
+    favorited: Boolean(item.favorited),
+    customTagged: Boolean(item.customTagged),
     audio: item.audio || "",
     collins: Number(item.collins || 0),
     oxford: Number(item.oxford || 0),
@@ -251,6 +260,8 @@ function normalizeDetail(item = {}) {
     posText: cleanText(item.pos),
     tagText: cleanText(item.tag),
     relatedCards: buildRelatedCards(item),
+    favorited: Boolean(item.favorited),
+    customTagged: Boolean(item.customTagged),
     collins: Number(item.collins || 0),
     oxford: Number(item.oxford || 0),
     bnc: Number(item.bnc || 0),
@@ -338,6 +349,42 @@ async function searchWords(keyword, options = {}) {
   };
 }
 
+async function listMarkedWords(options = {}) {
+  const page = Math.max(Number(options.page) || 0, 0);
+  const pageSize = clampPageSize(options.pageSize);
+  const filter = String(options.filter || "").trim();
+  if (!filter) {
+    return {
+      page,
+      pageSize,
+      hasMore: false,
+      list: [],
+    };
+  }
+
+  const result = await callWordFunction({
+    type: "listMarkedWords",
+    filter,
+    page,
+    limit: pageSize,
+  });
+
+  if (!result.success) {
+    throw new Error(result.errMsg || "加载标记单词失败");
+  }
+
+  const list = (result.list || [])
+    .map(normalizeListItem)
+    .filter((item) => !isHiddenWordEntry(item));
+
+  return {
+    page,
+    pageSize,
+    hasMore: Boolean(result.hasMore),
+    list,
+  };
+}
+
 async function getWordDetail(rawWord, options = {}) {
   const word = String(rawWord || "").trim();
   const forceRefresh = Boolean(options.forceRefresh);
@@ -390,5 +437,6 @@ module.exports = {
   fetchWordBatch,
   getWordDetail,
   getWordPreview,
+  listMarkedWords,
   searchWords,
 };

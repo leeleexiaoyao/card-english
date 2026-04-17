@@ -49,6 +49,8 @@ function normalizeSentence(item, fallbackOrder) {
 }
 
 const IMAGE_FILE_CACHE_KEY = "image_file_cache_v1";
+const USER_STATE_QUERY_LIMIT = 100;
+const imageLoadPromiseMap = {};
 
 function getImageFileCache() {
   return wx.getStorageSync(IMAGE_FILE_CACHE_KEY) || {};
@@ -103,27 +105,39 @@ async function lazyLoadImageUrl(cloudFileId) {
     return cachedLocalPath;
   }
 
-  try {
-    const res = await wx.cloud.downloadFile({
-      fileID: cloudFileId,
-    });
-    const tempFilePath = res.tempFilePath || "";
-    if (tempFilePath) {
-      let localPath = tempFilePath;
-      try {
-        localPath = await saveFileToLocal(tempFilePath);
-      } catch (saveErr) {
-        localPath = tempFilePath;
-      }
-      const nextCache = setCachedLocalImagePath(imageFileCache, cloudFileId, localPath);
-      setImageFileCache(nextCache);
-      return localPath;
-    }
-  } catch (err) {
-    console.error("[sentence-repo] lazyLoadImageUrl failed", err);
+  if (imageLoadPromiseMap[cloudFileId]) {
+    return imageLoadPromiseMap[cloudFileId];
   }
 
-  return "";
+  imageLoadPromiseMap[cloudFileId] = (async () => {
+    try {
+      const res = await wx.cloud.downloadFile({
+        fileID: cloudFileId,
+      });
+      const tempFilePath = res.tempFilePath || "";
+      if (tempFilePath) {
+        let localPath = tempFilePath;
+        try {
+          localPath = await saveFileToLocal(tempFilePath);
+        } catch (saveErr) {
+          localPath = tempFilePath;
+        }
+        const nextCache = setCachedLocalImagePath(getImageFileCache(), cloudFileId, localPath);
+        setImageFileCache(nextCache);
+        return localPath;
+      }
+    } catch (err) {
+      console.error("[sentence-repo] lazyLoadImageUrl failed", err);
+    }
+
+    return "";
+  })();
+
+  try {
+    return await imageLoadPromiseMap[cloudFileId];
+  } finally {
+    delete imageLoadPromiseMap[cloudFileId];
+  }
 }
 
 async function preloadImageUrls(cloudFileIds = []) {
@@ -273,24 +287,22 @@ async function fetchUserStateMap(sentenceIds = [], options = {}) {
       return localStates;
     }
     const db = wx.cloud.database();
-    const _ = db.command;
     const mergedMap = {};
-    const chunkSize = 20;
+    let skip = 0;
 
-    // 只获取本地缓存中没有的状态
-    const missingIds = sentenceIds.filter(id => !localStates[id]);
-    if (!missingIds.length) {
-      return localStates;
-    }
-
-    for (let i = 0; i < missingIds.length; i += chunkSize) {
-      const chunk = missingIds.slice(i, i + chunkSize);
+    while (true) {
       const res = await db
         .collection(SENTENCE_STATE_COLLECTION)
         .where({
           openid,
-          sentenceId: _.in(chunk),
         })
+        .field({
+          sentenceId: true,
+          mastered: true,
+          favorited: true,
+        })
+        .skip(skip)
+        .limit(USER_STATE_QUERY_LIMIT)
         .get();
       const list = res.data || [];
       for (let j = 0; j < list.length; j += 1) {
@@ -303,6 +315,10 @@ async function fetchUserStateMap(sentenceIds = [], options = {}) {
           favorited: Boolean(state.favorited),
         };
       }
+      if (list.length < USER_STATE_QUERY_LIMIT) {
+        break;
+      }
+      skip += USER_STATE_QUERY_LIMIT;
     }
 
     const nextLocal = {

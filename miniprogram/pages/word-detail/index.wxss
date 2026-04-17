@@ -33,6 +33,14 @@
   min-width: 0;
 }
 
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
+  flex-shrink: 0;
+}
+
 .word-line {
   display: flex;
   align-items: center;
@@ -67,6 +75,33 @@
   background: #eef3ff;
   font-size: 22rpx;
   color: #3f63ff;
+}
+
+.action-btn {
+  min-width: 96rpx;
+  height: 48rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #d4d9e2;
+  color: #637186;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.action-btn.active {
+  border-color: #2f72ff;
+  color: #2f72ff;
+  background: #edf3ff;
+}
+
+.action-btn.active.custom {
+  border-color: #e53935;
+  color: #e53935;
+  background: rgba(229, 57, 53, 0.1);
 }
 
 .play-btn {
