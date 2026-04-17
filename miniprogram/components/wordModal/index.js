@@ -16,6 +16,10 @@ Component({
       type: Object,
       value: null,
     },
+    queryWord: {
+      type: String,
+      value: "",
+    },
   },
   methods: {
     noop() {},

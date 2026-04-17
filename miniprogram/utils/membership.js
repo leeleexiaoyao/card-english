@@ -10,6 +10,7 @@ function normalizeMembershipUser(user = {}) {
     avatarUrl: user.avatarUrl || "/images/icons/avatar.png",
     profileCompleted: Boolean(user.profileCompleted),
     memberStatus: user.memberStatus || "free",
+    customWordTagName: String(user.customWordTagName || "易错词").trim() || "易错词",
     memberPlanCode: user.memberPlanCode || "",
     memberActivatedAt: user.memberActivatedAt || null,
     memberExpireAt: user.memberExpireAt || null,

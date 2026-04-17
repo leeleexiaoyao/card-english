@@ -3,7 +3,7 @@
   <view wx:elif="{{error}}" class="state-text">{{error}}</view>
 
   <view wx:elif="{{currentSentence}}" class="content">
-    <view class="card-stage">
+    <view class="card-stage" catchtouchmove="noop">
       <swiper
         class="card-swiper"
         current="{{swiperCurrent}}"
@@ -11,12 +11,13 @@
         easing-function="easeOutCubic"
         skip-hidden-item-layout="{{true}}"
         enable-back-to-top="{{false}}"
+        disable-touch="{{true}}"
         bindchange="onSwiperChange"
       >
         <swiper-item wx:for="{{sentences}}" wx:key="_id">
           <view class="card-slide">
             <view class="card-shell" bindtap="onTapImage" data-index="{{index}}">
-              <image class="card-bg" src="{{item.resolvedImageUrl}}" mode="aspectFill" bindload="onImageLoad" binderror="onImageError" />
+              <image class="card-bg" src="{{item.resolvedImageUrl}}" mode="widthFix" bindload="onImageLoad" binderror="onImageError" />
               <view class="card-overlay"></view>
               <view class="top-actions">
                 <image class="icon-btn" wx:if="{{currentIndex === index}}" src="/assets/icon/icon_sound_open.svg" catchtap="onPlaySentenceAudio" />
@@ -45,14 +46,14 @@
     </view>
 
     <view class="bottom-actions">
-      <view class="nav-btn {{currentIndex === 0 ? 'nav-btn-disabled' : ''}}" bindtap="goPrev">
-        <image class="nav-icon" src="/assets/icon/icon_previous.svg" />
+      <view class="action-btn action-btn-back {{currentIndex === 0 ? 'action-btn-disabled' : ''}}" bindtap="onGoBack">
+        返回
       </view>
-      <view class="master-btn {{currentSentence.mastered ? 'mastered' : ''}}" bindtap="onToggleMastered">
-        {{currentSentence.mastered ? '已掌握' : '未掌握'}}
+      <view class="action-btn action-btn-mastered {{currentSentence && currentSentence.mastered === true ? 'action-btn-active' : ''}}" bindtap="onMarkMastered">
+        已掌握
       </view>
-      <view class="nav-btn {{currentIndex === sentences.length - 1 ? 'nav-btn-disabled' : ''}}" bindtap="goNext">
-        <image class="nav-icon" src="/assets/icon/icon_next.svg" />
+      <view class="action-btn action-btn-unmastered {{currentSentence && currentSentence.mastered === false ? 'action-btn-active' : ''}}" bindtap="onMarkUnmastered">
+        未掌握
       </view>
     </view>
 
@@ -64,6 +65,7 @@
     loading="{{wordModalLoading}}"
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
+    queryWord="{{wordQuery}}"
     bind:close="onCloseWordModal"
     bind:opencard="onOpenWordCard"
     bind:playaudio="onPlayWordAudio"

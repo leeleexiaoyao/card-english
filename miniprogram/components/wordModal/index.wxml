@@ -1,63 +1,92 @@
 <view wx:if="{{visible}}" class="modal-mask" catchtouchmove="noop">
-  <view class="modal-card">
+  <view class="modal-card" catchtap="noop">
     <view class="modal-header">
       <text class="modal-title">单词详情</text>
       <text class="modal-close" bindtap="onClose">×</text>
     </view>
 
-    <view wx:if="{{loading}}" class="modal-loading">加载中...</view>
-    <view wx:elif="{{error}}" class="modal-error">{{error}}</view>
-
-    <view wx:elif="{{detail}}" class="modal-content">
+    <view class="modal-summary">
       <view class="word-line">
-        <text class="word-text">{{detail.word}}</text>
-        <text class="phonetic-text">{{detail.phonetic}}</text>
-        <button wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
+        <text class="word-text">{{detail.word || queryWord || '-'}}</text>
+        <text wx:if="{{detail && detail.phonetic}}" class="phonetic-text">{{detail.phonetic}}</text>
+        <view wx:elif="{{loading}}" class="summary-skeleton summary-skeleton-short"></view>
+        <button wx:if="{{detail && detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
       </view>
-      <view wx:if="{{detail.posText}}" class="meta-line">
+      <view wx:if="{{!loading && detail && detail.posText}}" class="meta-line">
         <text class="meta-tag">{{detail.posText}}</text>
       </view>
-
-      <view wx:if="{{detail.definitionText}}" class="section">
-        <view class="section-title">英文释义</view>
-        <view class="line-text">{{detail.definitionText}}</view>
-      </view>
-
-      <view wx:if="{{detail.translationText || detail.chineseMeaning}}" class="section">
-        <view class="section-title">中文释义</view>
-        <view class="line-text">{{detail.translationText || detail.chineseMeaning}}</view>
-      </view>
-
-      <view wx:if="{{detail.tagText}}" class="section">
-        <view class="section-title">标签</view>
-        <view class="line-text">{{detail.tagText}}</view>
-      </view>
-
-      <view wx:if="{{detail.exchangeText || detail.forms.length}}" class="section">
-        <view class="section-title">词形变化</view>
-        <view wx:if="{{detail.exchangeText}}" class="line-text">{{detail.exchangeText}}</view>
-        <view wx:elif="{{detail.forms.length}}">
-          <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section-title">卡片释义</view>
-        <view wx:if="{{detail.relatedCards.length}}">
-          <view
-            wx:for="{{detail.relatedCards}}"
-            wx:key="id"
-            class="related-card-item"
-            data-id="{{item.id}}"
-            bindtap="onOpenCard"
-          >
-            <view class="related-card-order">卡片 {{item.order}}</view>
-            <view class="related-card-english">{{item.english}}</view>
-            <view class="related-card-chinese">{{item.chinese}}</view>
-          </view>
-        </view>
-        <view wx:else class="line-text">当前词没有命中卡片内容</view>
+      <view wx:elif="{{loading}}" class="meta-line">
+        <view class="summary-skeleton summary-skeleton-tag"></view>
       </view>
     </view>
+
+    <scroll-view scroll-y class="modal-scroll">
+      <view wx:if="{{loading}}" class="modal-content">
+        <view class="skeleton-section">
+          <view class="skeleton-title"></view>
+          <view class="skeleton-line"></view>
+          <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+        <view class="skeleton-section">
+          <view class="skeleton-title"></view>
+          <view class="skeleton-line"></view>
+        </view>
+        <view class="skeleton-section">
+          <view class="skeleton-title"></view>
+          <view class="skeleton-line"></view>
+          <view class="skeleton-line"></view>
+          <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+      </view>
+
+      <view wx:elif="{{error}}" class="modal-content">
+        <view class="section">
+          <view class="line-text">{{error}}</view>
+        </view>
+      </view>
+
+      <view wx:elif="{{detail}}" class="modal-content">
+        <view wx:if="{{detail.definitionText}}" class="section">
+          <view class="section-title">英文释义</view>
+          <view class="line-text">{{detail.definitionText}}</view>
+        </view>
+
+        <view wx:if="{{detail.translationText || detail.chineseMeaning}}" class="section">
+          <view class="section-title">中文释义</view>
+          <view class="line-text">{{detail.translationText || detail.chineseMeaning}}</view>
+        </view>
+
+        <view wx:if="{{detail.tagText}}" class="section">
+          <view class="section-title">标签</view>
+          <view class="line-text">{{detail.tagText}}</view>
+        </view>
+
+        <view wx:if="{{detail.exchangeText || detail.forms.length}}" class="section">
+          <view class="section-title">词形变化</view>
+          <view wx:if="{{detail.exchangeText}}" class="line-text">{{detail.exchangeText}}</view>
+          <view wx:elif="{{detail.forms.length}}">
+            <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-title">卡片释义</view>
+          <view wx:if="{{detail.relatedCards.length}}">
+            <view
+              wx:for="{{detail.relatedCards}}"
+              wx:key="id"
+              class="related-card-item"
+              data-id="{{item.id}}"
+              bindtap="onOpenCard"
+            >
+              <view class="related-card-order">卡片 {{item.order}}</view>
+              <view class="related-card-english">{{item.english}}</view>
+              <view class="related-card-chinese">{{item.chinese}}</view>
+            </view>
+          </view>
+          <view wx:else class="line-text">当前词没有命中卡片内容</view>
+        </view>
+      </view>
+    </scroll-view>
   </view>
 </view>

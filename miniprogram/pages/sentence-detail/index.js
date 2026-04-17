@@ -41,6 +41,7 @@ Page({
     wordModalLoading: false,
     wordModalError: "",
     wordDetail: null,
+    wordQuery: "",
   },
 
   onLoad(options) {
@@ -553,6 +554,7 @@ Page({
       wordModalLoading: true,
       wordModalError: "",
       wordDetail: null,
+      wordQuery: word,
     });
 
     try {
@@ -574,6 +576,7 @@ Page({
   onCloseWordModal() {
     this.setData({
       wordModalVisible: false,
+      wordQuery: "",
     });
   },
 

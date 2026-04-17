@@ -40,6 +40,10 @@
   gap: 14rpx;
 }
 
+.phonetic-line {
+  margin-top: 6rpx;
+}
+
 .meta-line {
   margin-top: 14rpx;
 }
@@ -132,4 +136,9 @@
   font-size: 24rpx;
   color: #5b6370;
   line-height: 1.5;
+}
+
+.highlight-word {
+  color: #e53935;
+  font-weight: 700;
 }

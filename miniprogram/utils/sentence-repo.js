@@ -295,8 +295,11 @@ async function fetchUserStateMap(sentenceIds = [], options = {}) {
       const list = res.data || [];
       for (let j = 0; j < list.length; j += 1) {
         const state = list[j];
+        const mastered = Object.prototype.hasOwnProperty.call(state, "mastered")
+          ? state.mastered
+          : null;
         mergedMap[state.sentenceId] = {
-          mastered: Boolean(state.mastered),
+          mastered: mastered === null ? null : Boolean(mastered),
           favorited: Boolean(state.favorited),
         };
       }
@@ -316,10 +319,13 @@ async function fetchUserStateMap(sentenceIds = [], options = {}) {
 function mergeSentencesWithState(sentences = [], stateMap = {}) {
   return sentences.map((sentence, index) => {
     const state = stateMap[sentence._id] || {};
+    const mastered = Object.prototype.hasOwnProperty.call(state, "mastered")
+      ? state.mastered
+      : null;
     return {
       ...sentence,
       order: sentence.order || index + 1,
-      mastered: Boolean(state.mastered),
+      mastered: mastered === null ? null : Boolean(mastered),
       favorited: Boolean(state.favorited),
     };
   });
@@ -331,7 +337,7 @@ async function saveSentenceState(sentenceId, patch = {}) {
   }
   const localStates = getLocalStates();
   const current = localStates[sentenceId] || {
-    mastered: false,
+    mastered: null,
     favorited: false,
   };
   const nextState = {
@@ -382,12 +388,15 @@ async function saveSentenceState(sentenceId, patch = {}) {
 
 function buildCounts(sentences = []) {
   const total = sentences.length;
-  const mastered = sentences.filter((item) => item.mastered).length;
+  const mastered = sentences.filter((item) => item.mastered === true).length;
+  const unmastered = sentences.filter((item) => item.mastered === false).length;
+  const unlearned = sentences.filter((item) => item.mastered == null).length;
   const favorited = sentences.filter((item) => item.favorited).length;
   return {
     total,
     mastered,
-    unmastered: total - mastered,
+    unmastered,
+    unlearned,
     favorited,
   };
 }

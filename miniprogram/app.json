@@ -39,7 +39,7 @@
       },
       {
         "pagePath": "pages/word/index",
-        "text": "单词",
+        "text": "词库",
         "iconPath": "assets/icon/Tabicon/tab_icon_words_unselected.png",
         "selectedIconPath": "assets/icon/Tabicon/tab_icon_words_selected.png"
       },

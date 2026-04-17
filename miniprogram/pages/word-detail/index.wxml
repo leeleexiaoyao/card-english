@@ -7,6 +7,8 @@
       <view class="hero-main">
         <view class="word-line">
           <text class="word">{{detail.word}}</text>
+        </view>
+        <view wx:if="{{detail.phonetic}}" class="phonetic-line">
           <text class="phonetic">{{detail.phonetic}}</text>
         </view>
         <view wx:if="{{detail.posText}}" class="meta-line">
@@ -41,22 +43,28 @@
       </view>
     </view>
 
-    <view class="card">
+    <view wx:if="{{detail.hasRelatedCards}}" class="card">
       <view class="card-title">卡片释义</view>
-      <view wx:if="{{detail.relatedCards.length}}">
-        <view
-          wx:for="{{detail.relatedCards}}"
-          wx:key="id"
-          class="related-card-item"
-          data-id="{{item.id}}"
-          bindtap="onTapRelatedCard"
-        >
-          <view class="related-card-order">卡片 {{item.order}}</view>
-          <view class="related-card-english">{{item.english}}</view>
-          <view class="related-card-chinese">{{item.chinese}}</view>
+      <view
+        wx:for="{{detail.relatedCards}}"
+        wx:key="id"
+        class="related-card-item"
+        data-id="{{item.id}}"
+        bindtap="onTapRelatedCard"
+      >
+        <view class="related-card-order">卡片 {{item.order}}</view>
+        <view class="related-card-english">
+          <text
+            wx:for="{{item.englishSegments}}"
+            wx:key="index"
+            wx:for-item="segment"
+            class="{{segment.highlighted ? 'highlight-word' : ''}}"
+          >
+            {{segment.text}}
+          </text>
         </view>
+        <view class="related-card-chinese">{{item.chinese}}</view>
       </view>
-      <view wx:else class="line-text">当前词没有命中卡片内容</view>
     </view>
   </view>
 </view>

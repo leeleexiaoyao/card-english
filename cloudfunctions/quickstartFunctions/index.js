@@ -8,6 +8,7 @@ cloud.init({
 
 const db = cloud.database();
 const WORD_COLLECTION = "words";
+const WORD_STATE_COLLECTION = "user_word_state";
 const USER_COLLECTION = "users";
 const MEMBER_ORDER_COLLECTION = "member_orders";
 const WORD_QUERY_CHUNK = 100;
@@ -18,10 +19,16 @@ const DEFAULT_MEMBER_STATUS = "free";
 const VIP_MEMBER_STATUS = "vip";
 const LIFETIME_VIP_PRODUCT_CODE = "lifetime_vip_99";
 const VIRTUAL_PAYMENT_MODE = "short_series_goods";
+const DEFAULT_CUSTOM_WORD_TAG_NAME = "易错词";
 
 let accessTokenCache = {
   appId: "",
   token: "",
+  expiresAt: 0,
+};
+
+let visibleWordTotalCache = {
+  value: 0,
   expiresAt: 0,
 };
 
@@ -34,6 +41,7 @@ function normalizeUserRecord(item = {}) {
     avatarUrl: item.avatarUrl || "",
     profileCompleted: Boolean(item.profileCompleted),
     memberStatus: item.memberStatus || DEFAULT_MEMBER_STATUS,
+    customWordTagName: String(item.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME).trim() || DEFAULT_CUSTOM_WORD_TAG_NAME,
     memberPlanCode: item.memberPlanCode || "",
     memberActivatedAt: item.memberActivatedAt || null,
     memberExpireAt: item.memberExpireAt || null,
@@ -71,6 +79,7 @@ function createDefaultUserData({ openid = "", unionid = "" } = {}) {
     avatarUrl: "",
     profileCompleted: false,
     memberStatus: DEFAULT_MEMBER_STATUS,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     memberPlanCode: "",
     memberActivatedAt: null,
     memberExpireAt: null,
@@ -889,6 +898,405 @@ function isHiddenWordEntry(item = {}) {
   return isAffixWordEntry(item);
 }
 
+function normalizeWordKey(word = "") {
+  return String(word || "").trim().toLowerCase();
+}
+
+function normalizeWordStateRecord(item = {}) {
+  const word = String(item.word || "").trim();
+  const wordKey = normalizeWordKey(item.wordKey || word);
+  return {
+    _id: item._id || "",
+    openid: item.openid || "",
+    word,
+    wordKey,
+    favorited: Boolean(item.favorited),
+    customTagged: Boolean(item.customTagged),
+    updatedAt: item.updatedAt || null,
+  };
+}
+
+function sanitizeCustomWordTagName(raw = "") {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.length > 12) {
+    return "";
+  }
+  return trimmed;
+}
+
+async function getVisibleWordTotal() {
+  const now = Date.now();
+  if (visibleWordTotalCache.expiresAt > now && visibleWordTotalCache.value > 0) {
+    return visibleWordTotalCache.value;
+  }
+  let total = 0;
+  try {
+    const res = await db.collection(WORD_COLLECTION).where({
+      word: db.RegExp({
+        regexp: "^[A-Za-z]",
+        options: "",
+      }),
+    }).count();
+    total = Number(res.total || 0);
+  } catch (err) {
+    const fallback = await db.collection(WORD_COLLECTION).count();
+    total = Number((fallback && fallback.total) || 0);
+  }
+  visibleWordTotalCache = {
+    value: total,
+    expiresAt: now + 5 * 60 * 1000,
+  };
+  return total;
+}
+
+async function queryWordStateByWordKeys(openid = "", wordKeys = []) {
+  if (!openid || !wordKeys.length) {
+    return {};
+  }
+  await ensureCollectionExists(WORD_STATE_COLLECTION);
+  const _ = db.command;
+  const map = {};
+  const chunkSize = 50;
+  for (let i = 0; i < wordKeys.length; i += chunkSize) {
+    const chunk = wordKeys.slice(i, i + chunkSize);
+    const res = await db
+      .collection(WORD_STATE_COLLECTION)
+      .where({
+        openid,
+        wordKey: _.in(chunk),
+      })
+      .get();
+    const list = (res.data || []).map(normalizeWordStateRecord);
+    list.forEach((item) => {
+      if (!item.wordKey) {
+        return;
+      }
+      map[item.wordKey] = {
+        favorited: Boolean(item.favorited),
+        customTagged: Boolean(item.customTagged),
+      };
+    });
+  }
+  return map;
+}
+
+async function queryWordRecordsByWordValues(words = []) {
+  if (!words.length) {
+    return {};
+  }
+  const _ = db.command;
+  const map = {};
+  const chunkSize = 30;
+  for (let i = 0; i < words.length; i += chunkSize) {
+    const chunk = words.slice(i, i + chunkSize);
+    const res = await db
+      .collection(WORD_COLLECTION)
+      .where({
+        word: _.in(chunk),
+      })
+      .field({
+        word: true,
+        phonetic: true,
+        translation: true,
+        definition: true,
+        detail: true,
+        pos: true,
+        exchange: true,
+        audio: true,
+        collins: true,
+        oxford: true,
+        tag: true,
+        bnc: true,
+        frq: true,
+      })
+      .get();
+    const list = (res.data || []).map(normalizeWordRecord);
+    list.forEach((item) => {
+      if (isHiddenWordEntry(item)) {
+        return;
+      }
+      const wordKey = normalizeWordKey(item.word);
+      if (!wordKey || map[wordKey]) {
+        return;
+      }
+      map[wordKey] = item;
+    });
+  }
+  return map;
+}
+
+const getWordMarkMeta = async () => {
+  const ensureRes = await ensureUserRecord();
+  if (!ensureRes.success || !ensureRes.user) {
+    return {
+      success: false,
+      errMsg: ensureRes.errMsg || "user unavailable",
+    };
+  }
+  const user = normalizeUserRecord(ensureRes.user);
+  const openid = user.openid;
+  await ensureCollectionExists(WORD_STATE_COLLECTION);
+  const [total, favoritedRes, customTaggedRes] = await Promise.all([
+    getVisibleWordTotal(),
+    db.collection(WORD_STATE_COLLECTION).where({ openid, favorited: true }).count(),
+    db.collection(WORD_STATE_COLLECTION).where({ openid, customTagged: true }).count(),
+  ]);
+  return {
+    success: true,
+    isVip: isVipUser(user),
+    customWordTagName: user.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+    counts: {
+      total: Number(total || 0),
+      favorited: Number((favoritedRes && favoritedRes.total) || 0),
+      customTagged: Number((customTaggedRes && customTaggedRes.total) || 0),
+    },
+  };
+};
+
+const batchGetWordMarks = async (event) => {
+  const ensureRes = await ensureUserRecord();
+  if (!ensureRes.success || !ensureRes.user) {
+    return {
+      success: false,
+      errMsg: ensureRes.errMsg || "user unavailable",
+    };
+  }
+  const words = Array.isArray(event.words) ? event.words : [];
+  const wordKeys = Array.from(new Set(words.map((item) => normalizeWordKey(item)).filter(Boolean)));
+  if (!wordKeys.length) {
+    return {
+      success: true,
+      markMap: {},
+    };
+  }
+  const map = await queryWordStateByWordKeys(ensureRes.user.openid, wordKeys);
+  const markMap = {};
+  wordKeys.forEach((wordKey) => {
+    const state = map[wordKey] || {};
+    markMap[wordKey] = {
+      favorited: Boolean(state.favorited),
+      customTagged: Boolean(state.customTagged),
+    };
+  });
+  return {
+    success: true,
+    markMap,
+  };
+};
+
+const setWordMark = async (event) => {
+  const rawWord = String(event.word || "").trim();
+  if (!rawWord) {
+    return {
+      success: false,
+      errMsg: "word is required",
+    };
+  }
+  const ensureRes = await ensureUserRecord();
+  if (!ensureRes.success || !ensureRes.user) {
+    return {
+      success: false,
+      errMsg: ensureRes.errMsg || "user unavailable",
+    };
+  }
+  const user = normalizeUserRecord(ensureRes.user);
+  const hasFavorited = Object.prototype.hasOwnProperty.call(event, "favorited");
+  const hasCustomTagged = Object.prototype.hasOwnProperty.call(event, "customTagged");
+  if (!hasFavorited && !hasCustomTagged) {
+    return {
+      success: false,
+      errMsg: "no mark field provided",
+    };
+  }
+  if (hasCustomTagged && !isVipUser(user)) {
+    return {
+      success: false,
+      needVip: true,
+      errMsg: "自定义标签仅 VIP 可用",
+    };
+  }
+
+  const openid = user.openid;
+  const wordKey = normalizeWordKey(rawWord);
+  const currentMap = await queryWordStateByWordKeys(openid, [wordKey]);
+  const current = currentMap[wordKey] || {
+    favorited: false,
+    customTagged: false,
+  };
+  const nextState = {
+    favorited: hasFavorited ? Boolean(event.favorited) : Boolean(current.favorited),
+    customTagged: hasCustomTagged ? Boolean(event.customTagged) : Boolean(current.customTagged),
+  };
+
+  await ensureCollectionExists(WORD_STATE_COLLECTION);
+  const collection = db.collection(WORD_STATE_COLLECTION);
+  const where = {
+    openid,
+    wordKey,
+  };
+
+  if (!nextState.favorited && !nextState.customTagged) {
+    await collection.where(where).remove();
+  } else {
+    const queryRes = await collection.where(where).limit(1).get();
+    const list = queryRes.data || [];
+    if (list.length) {
+      await collection.where(where).update({
+        data: {
+          word: rawWord,
+          favorited: nextState.favorited,
+          customTagged: nextState.customTagged,
+          updatedAt: db.serverDate(),
+        },
+      });
+    } else {
+      await collection.add({
+        data: {
+          openid,
+          word: rawWord,
+          wordKey,
+          favorited: nextState.favorited,
+          customTagged: nextState.customTagged,
+          createdAt: db.serverDate(),
+          updatedAt: db.serverDate(),
+        },
+      });
+    }
+  }
+
+  return {
+    success: true,
+    word: rawWord,
+    wordKey,
+    favorited: nextState.favorited,
+    customTagged: nextState.customTagged,
+  };
+};
+
+const listMarkedWords = async (event) => {
+  const filter = String(event.filter || "").trim();
+  if (!["favorited", "customTagged"].includes(filter)) {
+    return {
+      success: false,
+      errMsg: "invalid filter",
+    };
+  }
+  const ensureRes = await ensureUserRecord();
+  if (!ensureRes.success || !ensureRes.user) {
+    return {
+      success: false,
+      errMsg: ensureRes.errMsg || "user unavailable",
+    };
+  }
+  const user = normalizeUserRecord(ensureRes.user);
+  if (filter === "customTagged" && !isVipUser(user)) {
+    return {
+      success: false,
+      needVip: true,
+      errMsg: "自定义标签仅 VIP 可用",
+    };
+  }
+
+  const page = Math.max(Number(event.page) || 0, 0);
+  const limit = Math.min(Math.max(Number(event.limit) || WORD_MAX_LIMIT, 1), WORD_MAX_LIMIT);
+  const openid = user.openid;
+  const visibleSkip = page * limit;
+  const targetSize = limit + 1;
+  const list = [];
+  let skippedVisible = 0;
+  let scanned = 0;
+  const chunkSize = 100;
+
+  await ensureCollectionExists(WORD_STATE_COLLECTION);
+  const collection = db.collection(WORD_STATE_COLLECTION);
+  const where = {
+    openid,
+    [filter]: true,
+  };
+
+  while (list.length < targetSize) {
+    const stateRes = await collection
+      .where(where)
+      .orderBy("updatedAt", "desc")
+      .skip(scanned)
+      .limit(chunkSize)
+      .get();
+    const states = (stateRes.data || []).map(normalizeWordStateRecord);
+    if (!states.length) {
+      break;
+    }
+    scanned += states.length;
+    const words = Array.from(new Set(states.map((item) => item.word).filter(Boolean)));
+    const wordRecordMap = await queryWordRecordsByWordValues(words);
+    for (let i = 0; i < states.length; i += 1) {
+      const state = states[i];
+      const record = wordRecordMap[state.wordKey];
+      if (!record) {
+        continue;
+      }
+      if (skippedVisible < visibleSkip) {
+        skippedVisible += 1;
+        continue;
+      }
+      list.push({
+        ...record,
+        favorited: Boolean(state.favorited),
+        customTagged: Boolean(state.customTagged),
+      });
+      if (list.length >= targetSize) {
+        break;
+      }
+    }
+    if (states.length < chunkSize) {
+      break;
+    }
+  }
+
+  return {
+    success: true,
+    page,
+    limit,
+    hasMore: list.length > limit,
+    list: list.slice(0, limit),
+  };
+};
+
+const updateCustomWordTagName = async (event) => {
+  const ensureRes = await ensureUserRecord();
+  if (!ensureRes.success || !ensureRes.user) {
+    return {
+      success: false,
+      errMsg: ensureRes.errMsg || "user unavailable",
+    };
+  }
+  const user = normalizeUserRecord(ensureRes.user);
+  if (!isVipUser(user)) {
+    return {
+      success: false,
+      needVip: true,
+      errMsg: "自定义标签仅 VIP 可用",
+    };
+  }
+  const customWordTagName = sanitizeCustomWordTagName(event.name);
+  if (!customWordTagName) {
+    return {
+      success: false,
+      errMsg: "标签名称长度需在 1-12 字符",
+    };
+  }
+  const updatedUser = await updateUserByOpenId(user.openid, {
+    customWordTagName,
+  });
+  return {
+    success: true,
+    customWordTagName,
+    user: updatedUser,
+  };
+};
+
 async function fetchWordListChunk({ skip = 0, limit = WORD_QUERY_CHUNK }) {
   const safeLimit = Math.min(Math.max(Number(limit) || WORD_QUERY_CHUNK, 1), WORD_QUERY_CHUNK);
   const res = await db
@@ -1339,6 +1747,16 @@ exports.main = async (event, context) => {
       return await searchWords(event);
     case "getWordDetail":
       return await getWordDetail(event);
+    case "getWordMarkMeta":
+      return await getWordMarkMeta();
+    case "batchGetWordMarks":
+      return await batchGetWordMarks(event);
+    case "setWordMark":
+      return await setWordMark(event);
+    case "listMarkedWords":
+      return await listMarkedWords(event);
+    case "updateCustomWordTagName":
+      return await updateCustomWordTagName(event);
     case "getMiniProgramCode":
       return await getMiniProgramCode();
     case "createCollection":

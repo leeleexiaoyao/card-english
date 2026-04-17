@@ -2,8 +2,8 @@ const { sentenceBank } = require("../data/sentenceBank");
 const { cardImagePool } = require("../data/cardImagePool");
 const { guessWordForms, tokenizeSentence } = require("./word");
 
-const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v5_";
-const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v6";
+const WORD_PAGE_CACHE_PREFIX = "word_page_cache_v6_";
+const WORD_DETAIL_CACHE_KEY = "word_detail_cache_v7";
 const WORD_DEFAULT_PAGE_SIZE = 200;
 const WORD_MAX_PAGE_SIZE = 200;
 const WORD_SEARCH_LIMIT = 50;
@@ -48,6 +48,15 @@ function cleanText(raw = "") {
     .replace(/\n[ \t]+/g, "\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function formatPhonetic(raw = "") {
+  const cleaned = cleanText(raw);
+  if (!cleaned) {
+    return "";
+  }
+  const core = cleaned.replace(/^[/\[]+|[/\]]+$/g, "").trim();
+  return core ? `/${core}/` : "";
 }
 
 function splitLines(raw = "", limit = 0) {
@@ -211,7 +220,7 @@ function normalizeListItem(item = {}) {
   return {
     _id: item._id || "",
     word: String(item.word || "").trim(),
-    phonetic: cleanText(item.phonetic) || "暂无",
+    phonetic: formatPhonetic(item.phonetic),
     translationText: summarizeTranslation(item.translation || item.definition || item.detail || ""),
     tagText: cleanText(item.tag),
     chineseMeaning: summarizeMeaning(item),
@@ -229,7 +238,7 @@ function normalizeDetail(item = {}) {
   const forms = parseForms(item.exchange, word);
   return {
     word,
-    phonetic: cleanText(item.phonetic) || "暂无",
+    phonetic: formatPhonetic(item.phonetic),
     audio: item.audio || "",
     chineseMeaning: summarizeMeaning(item),
     meanings: buildMeanings(item),

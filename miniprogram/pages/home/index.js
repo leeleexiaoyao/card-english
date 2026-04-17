@@ -39,6 +39,7 @@ Page({
       total: 0,
       mastered: 0,
       unmastered: 0,
+      unlearned: 0,
       favorited: 0,
     },
     currentIndex: 0,
@@ -50,6 +51,7 @@ Page({
     wordModalLoading: false,
     wordModalError: "",
     wordDetail: null,
+    wordQuery: "",
   },
 
   onLoad() {
@@ -57,7 +59,7 @@ Page({
     this.audioRequestId = 0;
     this.autoPlaySequenceId = 0;
     this.autoPlayChineseTimer = null;
-    this.swiperGuarding = false;
+    this.programmaticSwiperTarget = null;
     this.initialSentenceAccessDone = false;
     this.initialSentenceAccessPromise = null;
     // 立即显示加载状态
@@ -327,11 +329,20 @@ Page({
 
   onSwiperChange(e) {
     const nextIndex = e.detail.current;
-    const previousIndex = this.data.currentIndex;
-    if (nextIndex === previousIndex) {
+    if (nextIndex === this.data.currentIndex) {
       return;
     }
-    this.handleSwipeToIndex(nextIndex, previousIndex);
+    if (nextIndex !== this.programmaticSwiperTarget) {
+      this.setData({
+        swiperCurrent: this.data.currentIndex,
+      });
+      return;
+    }
+    this.programmaticSwiperTarget = null;
+    this.setActiveIndex(nextIndex, false);
+    if (this.data.settings.autoPlayAudio) {
+      this.startAutoPlaySequence();
+    }
   },
 
   onTapImage(e) {
@@ -356,43 +367,6 @@ Page({
   },
 
   noop() {},
-
-  async handleSwipeToIndex(nextIndex, previousIndex) {
-    if (this.swiperGuarding) {
-      return;
-    }
-    if (!this.requireActionAuth()) {
-      this.swiperGuarding = true;
-      this.setActiveIndex(previousIndex, false);
-      this.setData({
-        swiperCurrent: previousIndex,
-      });
-      setTimeout(() => {
-        this.swiperGuarding = false;
-      }, 0);
-      return;
-    }
-    if (nextIndex > previousIndex) {
-      this.setActiveIndex(nextIndex, false);
-      const allowed = await this.ensureSentenceAccess(nextIndex);
-      if (!allowed) {
-        this.swiperGuarding = true;
-        this.setActiveIndex(previousIndex, false);
-        this.setData({
-          swiperCurrent: previousIndex,
-        });
-        setTimeout(() => {
-          this.swiperGuarding = false;
-        }, 0);
-        return;
-      }
-    }
-
-    this.setActiveIndex(nextIndex, false);
-    if (this.data.settings.autoPlayAudio) {
-      this.startAutoPlaySequence();
-    }
-  },
 
   async ensureSentenceAccess(targetIndex) {
     await this.ensureInitialSentenceAccessReady();
@@ -468,7 +442,7 @@ Page({
     });
   },
 
-  goPrev() {
+  onGoBack() {
     if (!this.requireActionAuth()) {
       return;
     }
@@ -480,33 +454,13 @@ Page({
       });
       return;
     }
+    this.programmaticSwiperTarget = nextIndex;
     this.setData({
       swiperCurrent: nextIndex,
     });
   },
 
-  async goNext() {
-    if (!this.requireActionAuth()) {
-      return;
-    }
-    const nextIndex = this.data.currentIndex + 1;
-    if (nextIndex >= this.data.sentences.length) {
-      wx.showToast({
-        title: "已经是最后一条",
-        icon: "none",
-      });
-      return;
-    }
-    const allowed = await this.ensureSentenceAccess(nextIndex);
-    if (!allowed) {
-      return;
-    }
-    this.setData({
-      swiperCurrent: nextIndex,
-    });
-  },
-
-  async onToggleMastered() {
+  async markCurrentSentenceAndAdvance(mastered) {
     if (!this.requireActionAuth()) {
       return;
     }
@@ -515,32 +469,37 @@ Page({
       return;
     }
 
-    if (currentSentence.mastered) {
-      this.updateSentenceAtIndex(currentIndex, {
-        mastered: false,
-      });
-      await saveSentenceState(currentSentence._id, {
-        mastered: false,
+    this.updateSentenceAtIndex(currentIndex, {
+      mastered,
+    });
+    await saveSentenceState(currentSentence._id, {
+      mastered,
+    });
+
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= sentences.length) {
+      wx.showToast({
+        title: "已完成全部标记",
+        icon: "none",
       });
       return;
     }
-
-    this.updateSentenceAtIndex(currentIndex, {
-      mastered: true,
-    });
-    await saveSentenceState(currentSentence._id, {
-      mastered: true,
-    });
-
-    if (currentIndex < sentences.length - 1) {
-      const allowed = await this.ensureSentenceAccess(currentIndex + 1);
-      if (!allowed) {
-        return;
-      }
-      this.setData({
-        swiperCurrent: currentIndex + 1,
-      });
+    const allowed = await this.ensureSentenceAccess(nextIndex);
+    if (!allowed) {
+      return;
     }
+    this.programmaticSwiperTarget = nextIndex;
+    this.setData({
+      swiperCurrent: nextIndex,
+    });
+  },
+
+  async onMarkMastered() {
+    await this.markCurrentSentenceAndAdvance(true);
+  },
+
+  async onMarkUnmastered() {
+    await this.markCurrentSentenceAndAdvance(false);
   },
 
   async onToggleFavorited() {
@@ -739,6 +698,7 @@ Page({
       wordModalLoading: true,
       wordModalError: "",
       wordDetail: null,
+      wordQuery: word,
     });
 
     try {
@@ -760,6 +720,7 @@ Page({
   onCloseWordModal() {
     this.setData({
       wordModalVisible: false,
+      wordQuery: "",
     });
   },
 

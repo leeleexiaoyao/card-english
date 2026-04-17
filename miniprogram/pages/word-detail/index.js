@@ -1,6 +1,38 @@
 const { getSettings } = require("../../utils/settings");
 const { getWordDetail } = require("../../utils/dictionary");
 const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../../utils/audio-player");
+const { tokenizeSentence } = require("../../utils/word");
+
+function buildHighlightTargets(detail = {}) {
+  const targets = new Set();
+  const baseWord = String(detail.word || "").trim().toLowerCase();
+  if (baseWord) {
+    targets.add(baseWord);
+  }
+  (detail.forms || []).forEach((form) => {
+    const value = String((form && form.value) || "").trim().toLowerCase();
+    if (value) {
+      targets.add(value);
+    }
+  });
+  return targets;
+}
+
+function buildEnglishSegments(english = "", targets = new Set()) {
+  return tokenizeSentence(english).map((token) => ({
+    text: token.text,
+    highlighted: Boolean(token.isWord && targets.has(token.word)),
+  }));
+}
+
+function decorateRelatedCards(detail = {}) {
+  const cards = Array.isArray(detail.relatedCards) ? detail.relatedCards : [];
+  const targets = buildHighlightTargets(detail);
+  return cards.map((card) => ({
+    ...card,
+    englishSegments: buildEnglishSegments(card.english || "", targets),
+  }));
+}
 
 Page({
   data: {
@@ -48,8 +80,13 @@ Page({
     });
     try {
       const detail = await getWordDetail(word);
+      const relatedCards = decorateRelatedCards(detail);
       this.setData({
-        detail,
+        detail: {
+          ...detail,
+          relatedCards,
+          hasRelatedCards: relatedCards.length > 0,
+        },
       });
     } catch (err) {
       this.setData({

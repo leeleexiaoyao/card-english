@@ -44,6 +44,7 @@ function normalizeUser(user = {}) {
     avatarUrl: user.avatarUrl || "/images/icons/avatar.png",
     profileCompleted: Boolean(user.profileCompleted),
     memberStatus: user.memberStatus || "free",
+    customWordTagName: String(user.customWordTagName || "易错词").trim() || "易错词",
     memberPlanCode: user.memberPlanCode || "",
     memberExpireAt: user.memberExpireAt || null,
     memberActivatedAt: user.memberActivatedAt || null,

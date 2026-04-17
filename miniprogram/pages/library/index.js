@@ -38,6 +38,7 @@ Page({
       total: 0,
       mastered: 0,
       unmastered: 0,
+      unlearned: 0,
       favorited: 0,
     },
     activeFilter: "all",
@@ -50,6 +51,7 @@ Page({
     wordModalLoading: false,
     wordModalError: "",
     wordDetail: null,
+    wordQuery: "",
   },
 
   onLoad() {
@@ -165,9 +167,11 @@ Page({
     const { allSentences, activeFilter } = this.data;
     let list = allSentences.slice();
     if (activeFilter === "mastered") {
-      list = list.filter((item) => item.mastered);
+      list = list.filter((item) => item.mastered === true);
     } else if (activeFilter === "unmastered") {
-      list = list.filter((item) => !item.mastered);
+      list = list.filter((item) => item.mastered === false);
+    } else if (activeFilter === "unlearned") {
+      list = list.filter((item) => item.mastered == null);
     } else if (activeFilter === "favorited") {
       list = list.filter((item) => item.favorited);
     }
@@ -412,6 +416,7 @@ Page({
       wordModalLoading: true,
       wordModalError: "",
       wordDetail: null,
+      wordQuery: word,
     });
 
     try {
@@ -433,6 +438,7 @@ Page({
   onCloseWordModal() {
     this.setData({
       wordModalVisible: false,
+      wordQuery: "",
     });
   },
 
