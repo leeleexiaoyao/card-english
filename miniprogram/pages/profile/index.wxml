@@ -1,12 +1,18 @@
 <view class="page">
   <view class="card profile-card">
-    <image class="avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
+    <button
+      wx:if="{{showProfileEditor}}"
+      class="avatar-picker profile-avatar-picker"
+      open-type="chooseAvatar"
+      bindchooseavatar="onChooseAvatar"
+    >
+      <image class="avatar" src="{{editAvatarUrl}}" mode="aspectFit" />
+    </button>
+    <image wx:else class="avatar" src="{{profile.avatarUrl}}" mode="aspectFit" />
     <view class="profile-main">
-      <view class="name-row">
-        <view class="name">{{profile.nickName}}</view>
-        <view wx:if="{{profile.loggedIn}}" class="role-tag {{profile.memberStatus === 'vip' ? 'vip' : ''}}">
-          {{memberLabel}}
-        </view>
+      <view class="name">{{profile.nickName}}</view>
+      <view wx:if="{{profile.loggedIn}}" class="role-tag role-tag-block {{profile.memberStatus === 'vip' ? 'vip' : ''}}">
+        {{memberLabel}}
       </view>
     </view>
     <view class="profile-actions">
@@ -15,25 +21,6 @@
         <image class="more-arrow" src="/assets/icon/icon_more.svg" />
       </view>
     </view>
-  </view>
-
-  <view wx:if="{{showProfileEditor}}" class="card profile-editor-card">
-    <view class="editor-title">完善资料</view>
-    <view class="editor-sub">微信当前规则下，头像和昵称需要你手动确认填写。</view>
-    <view class="editor-avatar-row">
-      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image class="editor-avatar" src="{{editAvatarUrl}}" mode="aspectFill" />
-      </button>
-      <view class="editor-avatar-tip">点击头像选择微信头像</view>
-    </view>
-    <input
-      class="nick-input"
-      type="nickname"
-      placeholder="请输入昵称"
-      value="{{editNickName}}"
-      bindinput="onNickNameInput"
-    />
-    <button class="save-btn" loading="{{savingProfile}}" bindtap="onSaveProfile">保存资料</button>
   </view>
 
   <view class="card member-card" bindtap="onOpenMemberCenter">
@@ -72,16 +59,6 @@
       <picker mode="selector" range="{{voiceGenderLabels}}" value="{{voiceGenderIndex}}" bindchange="onVoiceGenderPickerChange">
         <view class="row-right">
           <view class="row-value picker-value">{{voiceGenderLabel}}</view>
-          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-        </view>
-      </picker>
-    </view>
-
-    <view class="setting-row clickable">
-      <view class="row-title">语速</view>
-      <picker mode="selector" range="{{speechRateLabels}}" value="{{speechRateIndex}}" bindchange="onSpeechRatePickerChange">
-        <view class="row-right">
-          <view class="row-value picker-value">{{speechRateLabel}}</view>
           <image class="more-arrow" src="/assets/icon/icon_more.svg" />
         </view>
       </picker>

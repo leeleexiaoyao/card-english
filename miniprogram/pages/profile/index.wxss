@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
   background: #f5f6f8;
-  padding: 18rpx;
+  padding: 8px 18rpx 18rpx 8px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -18,10 +18,12 @@
 .profile-card {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  justify-content: flex-start;
+  gap: 8px;
   background: transparent;
   box-shadow: none;
   padding: 0;
+  margin: 0;
 }
 
 .avatar {
@@ -30,24 +32,28 @@
   border-radius: 50%;
   background: #e9eaed;
   flex-shrink: 0;
+  flex-grow: 0;
+  flex-basis: 92rpx;
+  overflow: hidden;
+  display: block;
+  padding: 0;
+  margin: 0;
 }
 
 .profile-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10rpx;
   flex: 1;
   min-width: 0;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  flex-wrap: wrap;
 }
 
 .name {
   font-size: 32rpx;
   font-weight: 600;
   color: #1e1e1e;
+  text-align: left;
 }
 
 .role-tag {
@@ -70,22 +76,46 @@
   color: #ff8829;
 }
 
+.role-tag-block {
+  min-width: 0;
+}
+
 .profile-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 10rpx;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .login-btn,
-.save-btn,
 .avatar-picker {
   margin: 0;
 }
 
-.login-btn,
-.save-btn {
+.profile-avatar-picker {
+  width: 92rpx;
+  min-width: 92rpx;
+  height: 92rpx;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  line-height: 0;
+  font-size: 0;
+  flex-shrink: 0;
+  flex-grow: 0;
+  flex-basis: 92rpx;
+  display: block;
+}
+
+.profile-avatar-picker::after {
+  border: 0;
+}
+
+.login-btn {
   padding: 12rpx 24rpx;
   border-radius: 999rpx;
   background: #0478f5;
@@ -102,7 +132,6 @@
   justify-content: center;
 }
 
-.profile-editor-card,
 .setting-card {
   display: flex;
   flex-direction: column;
@@ -163,58 +192,6 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-}
-
-.editor-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.editor-sub {
-  font-size: 24rpx;
-  color: #64748b;
-}
-
-.editor-avatar-row {
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-}
-
-.avatar-picker {
-  width: 104rpx;
-  height: 104rpx;
-  padding: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  background: transparent;
-}
-
-.avatar-picker::after {
-  border: 0;
-}
-
-.editor-avatar {
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 50%;
-  background: #e9eaed;
-}
-
-.editor-avatar-tip {
-  font-size: 24rpx;
-  color: #475569;
-}
-
-.nick-input {
-  height: 84rpx;
-  border-radius: 18rpx;
-  background: #f8fafc;
-  padding: 0 24rpx;
-  box-sizing: border-box;
-  font-size: 28rpx;
-  color: #1e293b;
 }
 
 .section-title {

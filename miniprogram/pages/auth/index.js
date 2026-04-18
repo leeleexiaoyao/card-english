@@ -33,7 +33,13 @@ Page({
     if (cachedUser && cachedUser.openid) {
       Promise.resolve()
         .then(() => app.beginLogin())
-        .then(() => {
+        .then((user) => {
+          if (user && !user.profileCompleted) {
+            wx.showToast({
+              title: "请在我的页完善头像昵称",
+              icon: "none",
+            });
+          }
           app.returnToAuthSource();
         })
         .catch((err) => {
@@ -56,7 +62,13 @@ Page({
       desc: "用于登录并同步头像昵称",
       success: async (res) => {
         try {
-          await app.completeLoginWithUserProfile(res.userInfo || {});
+          const user = await app.completeLoginWithUserProfile(res.userInfo || {});
+          if (user && !user.profileCompleted) {
+            wx.showToast({
+              title: "请在我的页完善头像昵称",
+              icon: "none",
+            });
+          }
           app.returnToAuthSource();
         } catch (err) {
           console.error("[auth] login failed", err);

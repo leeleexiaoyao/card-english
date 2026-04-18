@@ -327,9 +327,7 @@ Page({
     const showChineseOverride =
       typeof sentence.showChineseOverride === "boolean"
         ? sentence.showChineseOverride
-        : typeof sentence.showChinese === "boolean"
-          ? sentence.showChinese
-          : null;
+        : null;
     return {
       ...sentence,
       globalIndex: Number(sentence.globalIndex),

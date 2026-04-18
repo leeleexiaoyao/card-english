@@ -10,12 +10,6 @@ const {
 } = require("../../utils/membership");
 
 const RATE_OPTIONS = [0.5, 1, 2];
-const SPEECH_RATE_OPTIONS = [
-  { label: "慢", value: 3 },
-  { label: "标准", value: 5 },
-  { label: "稍快", value: 7 },
-  { label: "快", value: 9 },
-];
 const VOICE_GENDER_OPTIONS = [
   { label: "女声", value: "female" },
   { label: "男声", value: "male" },
@@ -42,10 +36,6 @@ Page({
     playRateLabels: RATE_OPTIONS.map((item) => `${item}x`),
     playRateIndex: 1,
     playRateLabel: "1x",
-    speechRateOptions: SPEECH_RATE_OPTIONS,
-    speechRateLabels: SPEECH_RATE_OPTIONS.map((item) => item.label),
-    speechRateIndex: 1,
-    speechRateLabel: "标准",
     voiceGenderOptions: VOICE_GENDER_OPTIONS,
     voiceGenderLabels: VOICE_GENDER_OPTIONS.map((item) => item.label),
     voiceGenderIndex: 0,
@@ -63,8 +53,6 @@ Page({
       customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       playRateIndex: this.getPlayRateIndex(settings.playRate),
       playRateLabel: this.getPlayRateLabel(settings.playRate),
-      speechRateIndex: this.getSpeechRateIndex(settings.speechRate),
-      speechRateLabel: this.getSpeechRateLabel(settings.speechRate),
       voiceGenderIndex: this.getVoiceGenderIndex(settings.voiceGender),
       voiceGenderLabel: this.getVoiceGenderLabel(settings.voiceGender),
     });
@@ -89,16 +77,6 @@ Page({
   getPlayRateLabel(rate) {
     const index = this.getPlayRateIndex(rate);
     return this.data.playRateLabels[index];
-  },
-
-  getSpeechRateIndex(rate) {
-    const index = SPEECH_RATE_OPTIONS.findIndex((item) => item.value === rate);
-    return index >= 0 ? index : 1;
-  },
-
-  getSpeechRateLabel(rate) {
-    const index = this.getSpeechRateIndex(rate);
-    return this.data.speechRateLabels[index];
   },
 
   getVoiceGenderIndex(value) {
@@ -235,15 +213,15 @@ Page({
     this.setData({
       editAvatarUrl: avatarUrl,
     });
-  },
-
-  onNickNameInput(e) {
-    this.setData({
-      editNickName: String((e.detail && e.detail.value) || ""),
+    this.persistProfile({
+      avatarUrl,
+      nickName: this.data.editNickName,
+      successTitle: "头像已更新",
+      requireNickName: false,
     });
   },
 
-  async onSaveProfile() {
+  async persistProfile(options = {}) {
     if (!this.requireProfileAction()) {
       return;
     }
@@ -257,10 +235,11 @@ Page({
       return;
     }
 
-    const nickName = String(this.data.editNickName || "").trim();
-    if (!nickName) {
+    const nickName = String(options.nickName || this.data.editNickName || "").trim();
+    const requireNickName = options.requireNickName !== false;
+    if (requireNickName && !nickName) {
       wx.showToast({
-        title: "请输入昵称",
+        title: "请填写昵称",
         icon: "none",
       });
       return;
@@ -275,7 +254,7 @@ Page({
     });
 
     try {
-      let avatarUrl = this.data.editAvatarUrl || "/images/icons/avatar.png";
+      let avatarUrl = options.avatarUrl || this.data.editAvatarUrl || "/images/icons/avatar.png";
       if (avatarUrl.indexOf("/images/") === 0) {
         avatarUrl = "";
       } else if (avatarUrl && !avatarUrl.startsWith("cloud://") && !avatarUrl.startsWith("http")) {
@@ -309,7 +288,7 @@ Page({
         customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       });
       wx.showToast({
-        title: "资料已保存",
+        title: options.successTitle || "资料已保存",
         icon: "success",
       });
     } catch (err) {
@@ -417,41 +396,6 @@ Page({
       settings,
       playRateIndex: index,
       playRateLabel: this.data.playRateLabels[index],
-    });
-  },
-
-  onSelectSpeechRate(e) {
-    if (!this.requireProfileAction()) {
-      return;
-    }
-    const rate = Number(e.currentTarget.dataset.rate);
-    if (!rate) {
-      return;
-    }
-    const settings = updateSettings({
-      speechRate: rate,
-    });
-    this.setData({
-      settings,
-    });
-  },
-
-  onSpeechRatePickerChange(e) {
-    if (!this.requireProfileAction()) {
-      return;
-    }
-    const index = Number(e.detail.value);
-    const target = SPEECH_RATE_OPTIONS[index];
-    if (!target) {
-      return;
-    }
-    const settings = updateSettings({
-      speechRate: target.value,
-    });
-    this.setData({
-      settings,
-      speechRateIndex: index,
-      speechRateLabel: target.label,
     });
   },
 

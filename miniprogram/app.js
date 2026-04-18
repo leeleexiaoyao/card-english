@@ -35,14 +35,35 @@ function buildPageUrl(source = {}) {
   return `/${normalized.route}${query.length ? `?${query.join("&")}` : ""}`;
 }
 
+function sanitizeNickName(value = "") {
+  const nickName = String(value || "").trim();
+  if (!nickName || nickName === "微信用户") {
+    return "";
+  }
+  return nickName;
+}
+
+function sanitizeAvatarUrl(value = "") {
+  return String(value || "").trim();
+}
+
+function hasCompleteProfile(user = {}) {
+  return Boolean(sanitizeNickName(user.nickName) && sanitizeAvatarUrl(user.avatarUrl));
+}
+
 function normalizeUser(user = {}) {
+  const nickName = sanitizeNickName(user.nickName);
+  const avatarUrl = sanitizeAvatarUrl(user.avatarUrl);
   return {
     _id: user._id || "",
     openid: user.openid || "",
     unionid: user.unionid || "",
-    nickName: user.nickName || "",
-    avatarUrl: user.avatarUrl || "/images/icons/avatar.png",
-    profileCompleted: Boolean(user.profileCompleted),
+    nickName,
+    avatarUrl: avatarUrl || "/images/icons/avatar.png",
+    profileCompleted: hasCompleteProfile({
+      nickName,
+      avatarUrl,
+    }),
     memberStatus: user.memberStatus || "free",
     customWordTagName: "已学",
     memberPlanCode: user.memberPlanCode || "",
@@ -222,15 +243,20 @@ App({
   async completeLoginWithUserProfile(userInfo = {}) {
     const safeUserInfo = userInfo || {};
     const user = await this.beginLogin();
-    const result = await wx.cloud.callFunction({
-      name: "quickstartFunctions",
-      data: {
-        type: "updateUserProfile",
-        nickName: safeUserInfo.nickName || "微信用户",
-        avatarUrl: safeUserInfo.avatarUrl || "",
-      },
-    });
-    const nextUser = (result.result && result.result.user) || user;
+    const nickName = sanitizeNickName(safeUserInfo.nickName);
+    const avatarUrl = sanitizeAvatarUrl(safeUserInfo.avatarUrl);
+    let nextUser = user;
+    if (nickName || avatarUrl) {
+      const result = await wx.cloud.callFunction({
+        name: "quickstartFunctions",
+        data: {
+          type: "updateUserProfile",
+          nickName,
+          avatarUrl,
+        },
+      });
+      nextUser = (result.result && result.result.user) || user;
+    }
     if (nextUser && nextUser.openid) {
       this.setCurrentUser(nextUser);
     }

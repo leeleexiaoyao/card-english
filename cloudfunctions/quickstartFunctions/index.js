@@ -32,14 +32,35 @@ let visibleWordTotalCache = {
   expiresAt: 0,
 };
 
+function sanitizeNickName(value = "") {
+  const nickName = String(value || "").trim();
+  if (!nickName || nickName === "微信用户") {
+    return "";
+  }
+  return nickName;
+}
+
+function sanitizeAvatarUrl(value = "") {
+  return String(value || "").trim();
+}
+
+function hasCompleteProfile(user = {}) {
+  return Boolean(sanitizeNickName(user.nickName) && sanitizeAvatarUrl(user.avatarUrl));
+}
+
 function normalizeUserRecord(item = {}) {
+  const nickName = sanitizeNickName(item.nickName);
+  const avatarUrl = sanitizeAvatarUrl(item.avatarUrl);
   return {
     _id: item._id || "",
     openid: item.openid || "",
     unionid: item.unionid || "",
-    nickName: item.nickName || "",
-    avatarUrl: item.avatarUrl || "",
-    profileCompleted: Boolean(item.profileCompleted),
+    nickName,
+    avatarUrl,
+    profileCompleted: hasCompleteProfile({
+      nickName,
+      avatarUrl,
+    }),
     memberStatus: item.memberStatus || DEFAULT_MEMBER_STATUS,
     customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     memberPlanCode: item.memberPlanCode || "",
@@ -435,15 +456,15 @@ const updateUserProfile = async (event) => {
   }
 
   const openid = ensureRes.user.openid;
-  const nickName = String(event.nickName || "").trim();
-  const avatarUrl = String(event.avatarUrl || "").trim();
-
-  if (!nickName) {
-    return {
-      success: false,
-      errMsg: "nickName is required",
-    };
-  }
+  const currentUser = ensureRes.user || {};
+  const incomingNickName = sanitizeNickName(event.nickName);
+  const incomingAvatarUrl = sanitizeAvatarUrl(event.avatarUrl);
+  const nickName = incomingNickName || sanitizeNickName(currentUser.nickName);
+  const avatarUrl = incomingAvatarUrl || sanitizeAvatarUrl(currentUser.avatarUrl);
+  const profileCompleted = hasCompleteProfile({
+    nickName,
+    avatarUrl,
+  });
 
   await db
     .collection(USER_COLLECTION)
@@ -452,7 +473,7 @@ const updateUserProfile = async (event) => {
       data: {
         nickName,
         avatarUrl,
-        profileCompleted: true,
+        profileCompleted,
         updatedAt: db.serverDate(),
       },
     });
