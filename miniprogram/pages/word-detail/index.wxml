@@ -8,8 +8,11 @@
         <view class="word-line">
           <text class="word">{{detail.word}}</text>
         </view>
-        <view wx:if="{{detail.phonetic}}" class="phonetic-line">
+        <view wx:if="{{detail.phonetic || detail.audio}}" class="phonetic-line">
           <text class="phonetic">{{detail.phonetic}}</text>
+        <view wx:if="{{detail.audio}}" class="phonetic-play-btn" bindtap="onPlayAudio">
+          <image class="phonetic-play-icon phonetic-play-icon-blue" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
+        </view>
         </view>
         <view wx:if="{{detail.posText}}" class="meta-line">
           <text class="meta-tag">{{detail.posText}}</text>
@@ -19,20 +22,9 @@
         <view class="favorite-btn {{detail.favorited ? 'active' : ''}}" bindtap="onToggleFavorite">
           <image
             class="favorite-icon"
-            src="{{detail.favorited ? '/assets/icon/icon_uncollect.svg' : '/assets/icon/icon_collect.svg'}}"
+            src="{{detail.favorited ? '/assets/icon/homepage/icon_collected.svg' : '/assets/icon/homepage/icon_collect.svg'}}"
             mode="aspectFit"
           />
-        </view>
-        <view
-          wx:if="{{isVip}}"
-          class="custom-tag-btn {{detail.customTagged ? 'active' : ''}}"
-          bindtap="onToggleCustomTag"
-        >
-          <text class="custom-tag-plus">+</text>
-          <text class="custom-tag-label">{{customWordTagName}}</text>
-        </view>
-        <view wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">
-          <image class="play-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
         </view>
       </view>
     </view>
@@ -45,11 +37,6 @@
     <view wx:if="{{detail.translationText || detail.chineseMeaning}}" class="card">
       <view class="card-title">中文释义</view>
       <view class="line-text">{{detail.translationText || detail.chineseMeaning}}</view>
-    </view>
-
-    <view wx:if="{{detail.tagText}}" class="card">
-      <view class="card-title">标签</view>
-      <view class="line-text">{{detail.tagText}}</view>
     </view>
 
     <view wx:if="{{detail.exchangeText || detail.forms.length}}" class="card">
@@ -70,18 +57,20 @@
         bindtap="onTapRelatedCard"
       >
         <view class="related-card-order">卡片 {{item.order}}</view>
-        <view class="related-card-english">
-          <text
-            wx:for="{{item.englishSegments}}"
-            wx:key="index"
-            wx:for-item="segment"
-            class="{{segment.highlighted ? 'highlight-word' : ''}}"
-          >
-            {{segment.text}}
-          </text>
-        </view>
+        <view class="related-card-english"><text wx:for="{{item.englishSegments}}" wx:key="index" wx:for-item="segment" class="{{segment.highlighted ? 'highlight-word' : ''}}">{{segment.text}}</text></view>
         <view class="related-card-chinese">{{item.chinese}}</view>
       </view>
+    </view>
+  </view>
+
+  <view wx:if="{{detail}}" class="bottom-action-bar">
+    <view class="bottom-learn-btn {{detail.customTagged ? 'active' : ''}}" bindtap="onToggleCustomTag">
+      <image
+        class="bottom-learn-icon"
+        src="{{detail.customTagged ? '/assets/icon/homepage/icon_mastered_active.svg' : '/assets/icon/homepage/icon_mastered.svg'}}"
+        mode="aspectFit"
+      />
+      <text class="bottom-learn-label">{{customWordTagName}}</text>
     </view>
   </view>
 </view>

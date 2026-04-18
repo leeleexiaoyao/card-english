@@ -37,6 +37,22 @@
     </view>
   </view>
 
+  <view class="search-bar">
+    <input
+      class="search-input"
+      type="text"
+      value="{{keyword}}"
+      placeholder="搜索英文句子"
+      placeholder-style="color:#bcc3cf;"
+      confirm-type="search"
+      bindinput="onSearchInput"
+      bindconfirm="onSearchConfirm"
+    />
+    <view wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">
+      <text class="search-clear-icon">×</text>
+    </view>
+  </view>
+
   <view class="switch-row">
     <view class="switch-chip {{displayOptions.image ? 'on' : ''}}" data-key="image" bindtap="onToggleDisplay">图</view>
     <view class="switch-chip {{displayOptions.english ? 'on' : ''}}" data-key="english" bindtap="onToggleDisplay">英</view>
@@ -47,40 +63,80 @@
   <view wx:elif="{{error}}" class="state-text">{{error}}</view>
 
   <view wx:else class="list">
-    <view wx:if="{{!visibleSentences.length}}" class="state-text">暂无数据</view>
+    <view wx:if="{{keyword && searching}}" class="state-text">搜索中...</view>
+    <block wx:elif="{{keyword}}">
+      <view wx:if="{{!searchResults.length}}" class="state-text">没有找到相关句子</view>
+      <view
+        wx:for="{{searchResults}}"
+        wx:key="_id"
+        class="list-item"
+        data-id="{{item._id}}"
+        bindtap="onTapSentenceItem"
+      >
+        <image wx:if="{{displayOptions.image}}" class="thumb" src="{{item.resolvedImageUrl || item.imageUrl}}" mode="aspectFit" />
 
-    <view
-      wx:for="{{visibleSentences}}"
-      wx:key="_id"
-      class="list-item"
-      data-id="{{item._id}}"
-      bindtap="onTapSentenceItem"
-    >
-      <image wx:if="{{displayOptions.image}}" class="thumb" src="{{item.resolvedImageUrl || item.imageUrl}}" mode="aspectFill" />
+        <view class="item-main">
+          <view class="item-top">
+            <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
+            <text wx:if="{{item.mastered}}" class="master-tag">已掌握</text>
+          </view>
 
-      <view class="item-main">
-        <view class="item-top">
-          <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
-          <text wx:if="{{activeFilter === 'all' && item.mastered}}" class="master-tag">已掌握</text>
+          <view wx:if="{{displayOptions.english}}" class="line english-line">
+            <block wx:for="{{item.englishTokens}}" wx:key="index">
+              <text wx:if="{{item.isWord}}" space="ensp" class="word-token">{{item.text}}</text>
+              <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
+            </block>
+          </view>
+
+          <view wx:if="{{displayOptions.chinese && item.chinese}}" class="line chinese-line">
+            <text class="chinese-text" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">{{item.chinese}}</text>
+          </view>
         </view>
 
-        <view wx:if="{{displayOptions.english}}" class="line english-line">
-          <block wx:for="{{item.englishTokens}}" wx:key="index">
-            <text wx:if="{{item.isWord}}" space="ensp" class="word-token">{{item.text}}</text>
-            <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
-          </block>
+        <view class="audio-btn" catchtap="onPlayAudio" data-id="{{item._id}}">
+          <image class="audio-btn-icon" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view wx:if="{{!visibleSentences.length}}" class="state-text">暂无数据</view>
+
+      <view
+        wx:for="{{visibleSentences}}"
+        wx:key="_id"
+        class="list-item"
+        data-id="{{item._id}}"
+        bindtap="onTapSentenceItem"
+      >
+        <image wx:if="{{displayOptions.image}}" class="thumb" src="{{item.resolvedImageUrl || item.imageUrl}}" mode="aspectFit" />
+
+        <view class="item-main">
+          <view class="item-top">
+            <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
+            <text wx:if="{{activeFilter === 'all' && item.mastered}}" class="master-tag">已掌握</text>
+          </view>
+
+          <view wx:if="{{displayOptions.english}}" class="line english-line">
+            <block wx:for="{{item.englishTokens}}" wx:key="index">
+              <text wx:if="{{item.isWord}}" space="ensp" class="word-token">{{item.text}}</text>
+              <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
+            </block>
+          </view>
+
+          <view wx:if="{{displayOptions.chinese && item.chinese}}" class="line chinese-line">
+            <text class="chinese-text" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">{{item.chinese}}</text>
+          </view>
         </view>
 
-        <view wx:if="{{displayOptions.chinese && item.chinese}}" class="line chinese-line">
-          <text class="chinese-text" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">{{item.chinese}}</text>
+        <view class="audio-btn" catchtap="onPlayAudio" data-id="{{item._id}}">
+          <image class="audio-btn-icon" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
         </view>
       </view>
 
-      <view class="audio-btn" catchtap="onPlayAudio" data-id="{{item._id}}">播</view>
-    </view>
-
-    <view wx:if="{{hasMoreVisible && !loadingMore}}" class="load-more" bindtap="appendVisibleSentences">加载更多</view>
-    <view wx:if="{{loadingMore}}" class="load-more">加载中...</view>
+      <view wx:if="{{hasMoreVisible && !loadingMore}}" class="load-more" bindtap="appendVisibleSentences">加载更多</view>
+      <view wx:if="{{loadingMore}}" class="load-more">加载中...</view>
+    </block>
   </view>
 
   <word-modal
@@ -88,6 +144,7 @@
     loading="{{wordModalLoading}}"
     error="{{wordModalError}}"
     detail="{{wordDetail}}"
+    showRelatedCards="{{false}}"
     isVip="{{wordMarkMeta.isVip}}"
     customWordTagName="{{wordMarkMeta.customWordTagName}}"
     queryWord="{{wordQuery}}"

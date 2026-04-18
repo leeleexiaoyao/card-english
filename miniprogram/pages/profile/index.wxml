@@ -50,31 +50,11 @@
   <view class="section-title">设置</view>
   <view class="card setting-card">
     <view class="setting-row">
-      <view class="row-title">默认显示中文</view>
-      <switch checked="{{settings.defaultShowChinese}}" color="#0478F5" bindchange="onToggleDefaultChinese" />
-    </view>
-
-    <view class="setting-row">
-      <view class="row-title">自动播放音频</view>
-      <switch checked="{{settings.autoPlayAudio}}" color="#0478F5" bindchange="onToggleAutoPlay" />
-    </view>
-
-    <view class="setting-row">
       <view class="row-main">
         <view class="row-title">播报中文</view>
         <view class="row-sub">在英文音频后播报</view>
       </view>
       <switch checked="{{settings.speakChinese}}" color="#0478F5" bindchange="onToggleSpeakChinese" />
-    </view>
-
-    <view class="setting-row clickable">
-      <view class="row-title">音频播放次数</view>
-      <picker mode="selector" range="{{audioPlayCountLabels}}" value="{{audioPlayCountIndex}}" bindchange="onAudioPlayCountPickerChange">
-        <view class="row-right">
-          <view class="row-value picker-value">{{audioPlayCountLabel}}</view>
-          <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-        </view>
-      </picker>
     </view>
 
     <view class="setting-row clickable">
@@ -105,17 +85,6 @@
           <image class="more-arrow" src="/assets/icon/icon_more.svg" />
         </view>
       </picker>
-    </view>
-
-    <view class="setting-row clickable" bindtap="onEditCustomWordTagName">
-      <view class="row-main">
-        <view class="row-title">自定义标签名称</view>
-        <view class="row-sub">词库标记按钮与分类名称</view>
-      </view>
-      <view class="row-right">
-        <view class="row-value">{{customWordTagName}}</view>
-        <image class="more-arrow" src="/assets/icon/icon_more.svg" />
-      </view>
     </view>
   </view>
 

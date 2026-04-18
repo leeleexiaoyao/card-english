@@ -6,12 +6,7 @@
       </view>
       <view class="filter-indicator"></view>
     </view>
-    <view
-      wx:if="{{isVip}}"
-      class="filter-item {{activeFilter === 'customTagged' ? 'active' : ''}}"
-      data-filter="customTagged"
-      bindtap="onChangeFilter"
-    >
+    <view class="filter-item {{activeFilter === 'customTagged' ? 'active' : ''}}" data-filter="customTagged" bindtap="onChangeFilter">
       <view class="filter-main">
         <text class="filter-label">{{customWordTagName}}</text>
         <text class="filter-count">{{counts.customTagged}}</text>
@@ -33,11 +28,14 @@
       type="text"
       value="{{keyword}}"
       placeholder="搜索英文、音标或中文释义"
+      placeholder-style="color:#bcc3cf;"
       confirm-type="search"
       bindinput="onSearchInput"
       bindconfirm="onSearchConfirm"
     />
-    <view wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">清空</view>
+    <view wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">
+      <text class="search-clear-icon">×</text>
+    </view>
   </view>
 
   <view wx:if="{{loading}}" class="state-text">加载中...</view>
@@ -49,20 +47,19 @@
       <view wx:if="{{!searchResults.length}}" class="state-text">没有找到相关单词</view>
       <view wx:for="{{searchResults}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
         <view class="word-main">
-          <view class="word-line">
-            <view class="word-text">{{item.word}}</view>
+          <view class="word-title-line">
+            <text class="word-text">{{item.word}}</text>
+            <text wx:if="{{item.customTagged && activeFilter !== 'customTagged'}}" class="inline-custom-tag">{{customWordTagName}}</text>
+          </view>
+          <view wx:if="{{item.phonetic || item.pos}}" class="word-meta-line">
             <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
           <view class="translation-text">{{item.translationText}}</view>
-          <view class="status-row">
-            <view wx:if="{{item.customTagged}}" class="custom-tag-chip">{{customWordTagName}}</view>
-            <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
-          </view>
         </view>
         <view class="action-group">
-          <view wx:if="{{item.audio}}" class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
-            <image class="audio-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
+          <view class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
+            <image class="audio-icon audio-icon-blue" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
           </view>
         </view>
       </view>
@@ -72,20 +69,19 @@
       <view wx:if="{{!visibleWords.length}}" class="state-text">暂无单词</view>
       <view wx:for="{{visibleWords}}" wx:key="word" class="word-item" data-word="{{item.word}}" bindtap="onTapWord">
         <view class="word-main">
-          <view class="word-line">
-            <view class="word-text">{{item.word}}</view>
+          <view class="word-title-line">
+            <text class="word-text">{{item.word}}</text>
+            <text wx:if="{{item.customTagged && activeFilter !== 'customTagged'}}" class="inline-custom-tag">{{customWordTagName}}</text>
+          </view>
+          <view wx:if="{{item.phonetic || item.pos}}" class="word-meta-line">
             <view wx:if="{{item.phonetic}}" class="phonetic-inline">{{item.phonetic}}</view>
             <view wx:if="{{item.pos}}" class="pos-tag">{{item.pos}}</view>
           </view>
           <view class="translation-text">{{item.translationText}}</view>
-          <view class="status-row">
-            <view wx:if="{{item.customTagged}}" class="custom-tag-chip">{{customWordTagName}}</view>
-            <view wx:if="{{item.tagText}}" class="tag-text">{{item.tagText}}</view>
-          </view>
         </view>
         <view class="action-group">
-          <view wx:if="{{item.audio}}" class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
-            <image class="audio-icon" src="/assets/icon/icon_sound_open.svg" mode="aspectFit" />
+          <view class="audio-icon-btn" catchtap="onPlayAudio" data-word="{{item.word}}" data-audio="{{item.audio}}">
+            <image class="audio-icon audio-icon-blue" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
           </view>
         </view>
       </view>

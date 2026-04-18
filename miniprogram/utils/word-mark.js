@@ -3,7 +3,7 @@ const WORD_MARK_META_CACHE_KEY = "word_mark_meta_v1";
 const WORD_MARK_STATE_CACHE_KEY = "word_mark_state_v1";
 const WORD_MARK_META_TTL = 60 * 1000;
 const WORD_MARK_STATE_TTL = 5 * 60 * 1000;
-const DEFAULT_CUSTOM_WORD_TAG_NAME = "易错词";
+const DEFAULT_CUSTOM_WORD_TAG_NAME = "已学";
 
 function hasCloudEnv() {
   const app = getApp();
@@ -107,7 +107,7 @@ function normalizeMeta(raw = {}) {
   const counts = raw.counts || {};
   return {
     isVip: Boolean(raw.isVip),
-    customWordTagName: String(raw.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME).trim() || DEFAULT_CUSTOM_WORD_TAG_NAME,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     counts: {
       total: Number(counts.total || 0),
       favorited: Number(counts.favorited || 0),
@@ -279,28 +279,50 @@ async function setWordMark(payload = {}) {
   };
 }
 
-async function updateCustomWordTagName(name = "") {
-  const result = await callWordFunction({
-    type: "updateCustomWordTagName",
-    name: String(name || "").trim(),
-  });
-  if (!result.success) {
-    const error = new Error(result.errMsg || "更新标签名称失败");
-    error.needVip = Boolean(result.needVip);
-    throw error;
+async function batchSetWordCustomTagged(words = [], customTagged = true) {
+  const wordKeys = Array.from(new Set((Array.isArray(words) ? words : []).map(normalizeWordKey).filter(Boolean)));
+  if (!wordKeys.length) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      failedWords: [],
+      results: [],
+    };
   }
-  const customWordTagName = String(result.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME).trim() || DEFAULT_CUSTOM_WORD_TAG_NAME;
-  syncAppCustomWordTagName(customWordTagName);
-  clearMetaCache();
-  return customWordTagName;
+
+  const settledResults = await Promise.allSettled(
+    wordKeys.map((word) =>
+      setWordMark({
+        word,
+        customTagged,
+      })
+    )
+  );
+
+  const results = [];
+  const failedWords = [];
+  settledResults.forEach((item, index) => {
+    if (item.status === "fulfilled") {
+      results.push(item.value);
+      return;
+    }
+    failedWords.push(wordKeys[index]);
+  });
+
+  return {
+    successCount: results.length,
+    failureCount: failedWords.length,
+    failedWords,
+    results,
+  };
 }
 
 module.exports = {
+  batchSetWordCustomTagged,
   DEFAULT_CUSTOM_WORD_TAG_NAME,
   batchGetWordMarks,
   clearWordMarkCache,
   getWordMarkMeta,
   normalizeWordKey,
   setWordMark,
-  updateCustomWordTagName,
 };

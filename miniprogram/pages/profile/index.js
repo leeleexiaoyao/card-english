@@ -2,7 +2,7 @@ const { getSettings, updateSettings } = require("../../utils/settings");
 const { clearSentenceCache } = require("../../utils/sentence-repo");
 const { WORD_DETAIL_CACHE_KEY } = require("../../utils/dictionary");
 const { clearTtsCache } = require("../../utils/tts");
-const { DEFAULT_CUSTOM_WORD_TAG_NAME, updateCustomWordTagName } = require("../../utils/word-mark");
+const { DEFAULT_CUSTOM_WORD_TAG_NAME } = require("../../utils/word-mark");
 const {
   getMembershipLabel,
   getRemainingFreeCount,
@@ -19,12 +19,6 @@ const SPEECH_RATE_OPTIONS = [
 const VOICE_GENDER_OPTIONS = [
   { label: "女声", value: "female" },
   { label: "男声", value: "male" },
-];
-const AUDIO_PLAY_COUNT_OPTIONS = [
-  { label: "1次", value: "1" },
-  { label: "3次", value: "3" },
-  { label: "5次", value: "5" },
-  { label: "循环", value: "loop" },
 ];
 
 Page({
@@ -44,10 +38,6 @@ Page({
     memberLabel: "普通用户",
     freeRemainingCount: 2,
     settings: getSettings(),
-    audioPlayCountOptions: AUDIO_PLAY_COUNT_OPTIONS,
-    audioPlayCountLabels: AUDIO_PLAY_COUNT_OPTIONS.map((item) => item.label),
-    audioPlayCountIndex: 0,
-    audioPlayCountLabel: "1次",
     rateOptions: RATE_OPTIONS,
     playRateLabels: RATE_OPTIONS.map((item) => `${item}x`),
     playRateIndex: 1,
@@ -70,10 +60,7 @@ Page({
       settings,
       memberLabel: getMembershipLabel(this.data.profile),
       freeRemainingCount: getRemainingFreeCount(this.data.profile, getCurrentDateKey()),
-      customWordTagName:
-        (this.data.profile && this.data.profile.customWordTagName) || DEFAULT_CUSTOM_WORD_TAG_NAME,
-      audioPlayCountIndex: this.getAudioPlayCountIndex(settings.audioPlayCount),
-      audioPlayCountLabel: this.getAudioPlayCountLabel(settings.audioPlayCount),
+      customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       playRateIndex: this.getPlayRateIndex(settings.playRate),
       playRateLabel: this.getPlayRateLabel(settings.playRate),
       speechRateIndex: this.getSpeechRateIndex(settings.speechRate),
@@ -97,16 +84,6 @@ Page({
   getPlayRateIndex(rate) {
     const index = RATE_OPTIONS.findIndex((item) => item === rate);
     return index >= 0 ? index : 1;
-  },
-
-  getAudioPlayCountIndex(value) {
-    const index = AUDIO_PLAY_COUNT_OPTIONS.findIndex((item) => item.value === value);
-    return index >= 0 ? index : 0;
-  },
-
-  getAudioPlayCountLabel(value) {
-    const index = this.getAudioPlayCountIndex(value);
-    return this.data.audioPlayCountLabels[index];
   },
 
   getPlayRateLabel(rate) {
@@ -155,7 +132,7 @@ Page({
       avatarUrl: normalizedUser.avatarUrl || "/images/icons/avatar.png",
       profileCompleted: Boolean(normalizedUser.profileCompleted),
       memberStatus: normalizedUser.memberStatus || "free",
-      customWordTagName: String(normalizedUser.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME).trim() || DEFAULT_CUSTOM_WORD_TAG_NAME,
+      customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       dailyQuotaDate: normalizedUser.dailyQuotaDate || "",
       dailyUnlockedSentenceIds: Array.isArray(normalizedUser.dailyUnlockedSentenceIds)
         ? normalizedUser.dailyUnlockedSentenceIds
@@ -221,8 +198,7 @@ Page({
         showProfileEditor: Boolean(decoratedUser && !decoratedUser.profileCompleted),
         editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
         editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
-        customWordTagName:
-          (decoratedUser && decoratedUser.customWordTagName) || DEFAULT_CUSTOM_WORD_TAG_NAME,
+        customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       });
     } catch (err) {
       this.setData({
@@ -330,8 +306,7 @@ Page({
         showProfileEditor: false,
         editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
         editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
-        customWordTagName:
-          (decoratedUser && decoratedUser.customWordTagName) || DEFAULT_CUSTOM_WORD_TAG_NAME,
+        customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
       });
       wx.showToast({
         title: "资料已保存",
@@ -445,25 +420,6 @@ Page({
     });
   },
 
-  onAudioPlayCountPickerChange(e) {
-    if (!this.requireProfileAction()) {
-      return;
-    }
-    const index = Number(e.detail.value);
-    const target = AUDIO_PLAY_COUNT_OPTIONS[index];
-    if (!target) {
-      return;
-    }
-    const settings = updateSettings({
-      audioPlayCount: target.value,
-    });
-    this.setData({
-      settings,
-      audioPlayCountIndex: index,
-      audioPlayCountLabel: target.label,
-    });
-  },
-
   onSelectSpeechRate(e) {
     if (!this.requireProfileAction()) {
       return;
@@ -515,70 +471,6 @@ Page({
       settings,
       voiceGenderIndex: index,
       voiceGenderLabel: target.label,
-    });
-  },
-
-  onEditCustomWordTagName() {
-    if (!this.requireProfileAction()) {
-      return;
-    }
-    const profile = this.data.profile || {};
-    if (profile.memberStatus !== "vip") {
-      wx.showModal({
-        title: "升级 VIP",
-        content: "自定义标签仅限 VIP 使用，开通后可设置学习标签名称",
-        confirmText: "升级 VIP",
-        cancelText: "稍后再说",
-        success: (res) => {
-          if (!res.confirm) {
-            return;
-          }
-          wx.navigateTo({
-            url: "/pages/member-center/index",
-          });
-        },
-      });
-      return;
-    }
-
-    wx.showModal({
-      title: "设置标签名称",
-      editable: true,
-      placeholderText: "例如：易错词",
-      content: this.data.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
-      confirmText: "保存",
-      success: async (res) => {
-        if (!res.confirm) {
-          return;
-        }
-        const nextName = String(res.content || "").trim();
-        if (!nextName || nextName.length > 12) {
-          wx.showToast({
-            title: "标签名称长度需在 1-12 字符",
-            icon: "none",
-          });
-          return;
-        }
-        try {
-          const customWordTagName = await updateCustomWordTagName(nextName);
-          this.setData({
-            customWordTagName,
-            profile: {
-              ...profile,
-              customWordTagName,
-            },
-          });
-          wx.showToast({
-            title: "已保存",
-            icon: "success",
-          });
-        } catch (err) {
-          wx.showToast({
-            title: err.needVip ? "该功能仅限 VIP" : "保存失败",
-            icon: "none",
-          });
-        }
-      },
     });
   },
 

@@ -19,7 +19,7 @@ const DEFAULT_MEMBER_STATUS = "free";
 const VIP_MEMBER_STATUS = "vip";
 const LIFETIME_VIP_PRODUCT_CODE = "lifetime_vip_99";
 const VIRTUAL_PAYMENT_MODE = "short_series_goods";
-const DEFAULT_CUSTOM_WORD_TAG_NAME = "易错词";
+const DEFAULT_CUSTOM_WORD_TAG_NAME = "已学";
 
 let accessTokenCache = {
   appId: "",
@@ -41,7 +41,7 @@ function normalizeUserRecord(item = {}) {
     avatarUrl: item.avatarUrl || "",
     profileCompleted: Boolean(item.profileCompleted),
     memberStatus: item.memberStatus || DEFAULT_MEMBER_STATUS,
-    customWordTagName: String(item.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME).trim() || DEFAULT_CUSTOM_WORD_TAG_NAME,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     memberPlanCode: item.memberPlanCode || "",
     memberActivatedAt: item.memberActivatedAt || null,
     memberExpireAt: item.memberExpireAt || null,
@@ -1047,7 +1047,7 @@ const getWordMarkMeta = async () => {
   return {
     success: true,
     isVip: isVipUser(user),
-    customWordTagName: user.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     counts: {
       total: Number(total || 0),
       favorited: Number((favoritedRes && favoritedRes.total) || 0),
@@ -1111,14 +1111,6 @@ const setWordMark = async (event) => {
       errMsg: "no mark field provided",
     };
   }
-  if (hasCustomTagged && !isVipUser(user)) {
-    return {
-      success: false,
-      needVip: true,
-      errMsg: "自定义标签仅 VIP 可用",
-    };
-  }
-
   const openid = user.openid;
   const wordKey = normalizeWordKey(rawWord);
   const currentMap = await queryWordStateByWordKeys(openid, [wordKey]);
@@ -1192,13 +1184,6 @@ const listMarkedWords = async (event) => {
     };
   }
   const user = normalizeUserRecord(ensureRes.user);
-  if (filter === "customTagged" && !isVipUser(user)) {
-    return {
-      success: false,
-      needVip: true,
-      errMsg: "自定义标签仅 VIP 可用",
-    };
-  }
 
   const page = Math.max(Number(event.page) || 0, 0);
   const limit = Math.min(Math.max(Number(event.limit) || WORD_MAX_LIMIT, 1), WORD_MAX_LIMIT);
@@ -1265,35 +1250,9 @@ const listMarkedWords = async (event) => {
 };
 
 const updateCustomWordTagName = async (event) => {
-  const ensureRes = await ensureUserRecord();
-  if (!ensureRes.success || !ensureRes.user) {
-    return {
-      success: false,
-      errMsg: ensureRes.errMsg || "user unavailable",
-    };
-  }
-  const user = normalizeUserRecord(ensureRes.user);
-  if (!isVipUser(user)) {
-    return {
-      success: false,
-      needVip: true,
-      errMsg: "自定义标签仅 VIP 可用",
-    };
-  }
-  const customWordTagName = sanitizeCustomWordTagName(event.name);
-  if (!customWordTagName) {
-    return {
-      success: false,
-      errMsg: "标签名称长度需在 1-12 字符",
-    };
-  }
-  const updatedUser = await updateUserByOpenId(user.openid, {
-    customWordTagName,
-  });
   return {
-    success: true,
-    customWordTagName,
-    user: updatedUser,
+    success: false,
+    errMsg: "标签名称已固定为已学",
   };
 };
 

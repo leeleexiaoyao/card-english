@@ -33,7 +33,6 @@ Page({
       favorited: 0,
       customTagged: 0,
     },
-    isVip: false,
     customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     visibleWords: [],
     searchResults: [],
@@ -122,9 +121,6 @@ Page({
   },
 
   getEffectiveFilter() {
-    if (!this.data.isVip && this.data.activeFilter === FILTER_CUSTOM_TAGGED) {
-      return FILTER_ALL;
-    }
     return this.data.activeFilter;
   },
 
@@ -136,7 +132,6 @@ Page({
       forceRefresh,
     });
     const nextData = {
-      isVip: Boolean(meta.isVip),
       customWordTagName: meta.customWordTagName || DEFAULT_CUSTOM_WORD_TAG_NAME,
       counts: {
         total: Number((meta.counts && meta.counts.total) || 0),
@@ -144,9 +139,6 @@ Page({
         customTagged: Number((meta.counts && meta.counts.customTagged) || 0),
       },
     };
-    if (!nextData.isVip && this.data.activeFilter === FILTER_CUSTOM_TAGGED) {
-      nextData.activeFilter = FILTER_ALL;
-    }
     this.setData(nextData);
     if (nextData.activeFilter === FILTER_ALL && previousFilter !== FILTER_ALL && !skipReload && !this.isSearchMode()) {
       await this.loadWords();
@@ -293,9 +285,6 @@ Page({
     }
     const { filter } = e.currentTarget.dataset;
     if (!filter || filter === this.data.activeFilter) {
-      return;
-    }
-    if (filter === FILTER_CUSTOM_TAGGED && !this.data.isVip) {
       return;
     }
     this.setData({

@@ -9,10 +9,11 @@ const {
   preloadImageUrls,
   resolveImageUrl,
 } = require("../../utils/sentence-repo");
-const { getSettings } = require("../../utils/settings");
-const { tokenizeSentence } = require("../../utils/word");
+const { getSettings, updateSettings } = require("../../utils/settings");
+const { extractWordsFromSentence, tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
 const {
+  batchSetWordCustomTagged,
   DEFAULT_CUSTOM_WORD_TAG_NAME,
   batchGetWordMarks,
   getWordMarkMeta,
@@ -29,13 +30,33 @@ const {
 } = require("../../utils/audio-player");
 
 const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
-const AUTO_PLAY_CHINESE_DELAY_MS = 1000;
 const HOME_WINDOW_SIZE = 5;
-const AUDIO_PLAY_COUNT_ROUNDS = {
-  "1": 1,
-  "3": 3,
-  "5": 5,
+const CARD_STATE_FEEDBACK_MS = 200;
+const AUDIO_AUTO_PLAY_MODE_ORDER = ["off", "single", "five", "loop"];
+const AUDIO_AUTO_PLAY_CONFIG = {
+  off: {
+    enabled: false,
+    maxRounds: 0,
+  },
+  single: {
+    enabled: true,
+    maxRounds: 1,
+  },
+  five: {
+    enabled: true,
+    maxRounds: 5,
+  },
+  loop: {
+    enabled: true,
+    maxRounds: Infinity,
+  },
 };
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -46,6 +67,54 @@ function getAudioErrorMessage(err) {
     return "音频请求超时，请稍后重试";
   }
   return "句子发音暂不可用";
+}
+
+function getEventDataset(event) {
+  const detail = (event && event.detail && typeof event.detail === "object") ? event.detail : {};
+  const dataset = (event && event.currentTarget && event.currentTarget.dataset) || {};
+  return {
+    ...detail,
+    ...dataset,
+  };
+}
+
+function normalizeAudioAutoPlayMode(mode) {
+  if (mode === "single" || mode === "five" || mode === "loop" || mode === "off") {
+    return mode;
+  }
+  return "off";
+}
+
+function getAudioAutoPlayMode(settings = {}) {
+  return normalizeAudioAutoPlayMode(settings.audioAutoPlayMode);
+}
+
+function isAutoPlayEnabled(settings = {}) {
+  return getAudioAutoPlayMode(settings) !== "off";
+}
+
+function getAudioAutoPlayConfig(settings = {}) {
+  return AUDIO_AUTO_PLAY_CONFIG[getAudioAutoPlayMode(settings)] || AUDIO_AUTO_PLAY_CONFIG.off;
+}
+
+function getNextAudioAutoPlayMode(mode) {
+  const currentMode = normalizeAudioAutoPlayMode(mode);
+  const currentIndex = AUDIO_AUTO_PLAY_MODE_ORDER.indexOf(currentMode);
+  return AUDIO_AUTO_PLAY_MODE_ORDER[(currentIndex + 1) % AUDIO_AUTO_PLAY_MODE_ORDER.length];
+}
+
+function getAudioAutoPlayToast(mode) {
+  switch (normalizeAudioAutoPlayMode(mode)) {
+    case "single":
+      return "已开启自动播报";
+    case "five":
+      return "5次播报";
+    case "loop":
+      return "循环播报";
+    case "off":
+    default:
+      return "已关闭自动播报";
+  }
 }
 
 Page({
@@ -86,6 +155,7 @@ Page({
       this.handleAutoPlayAudioEvent(event);
     });
     this.advanceRequestId = 0;
+    this.pendingSwiperTransition = null;
     this.initialSentenceAccessDone = false;
     this.initialSentenceAccessPromise = null;
     this.fullSentences = [];
@@ -131,14 +201,6 @@ Page({
     this.autoPlayChineseTimer = null;
   },
 
-  getAudioPlayRoundLimit() {
-    const value = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
-    if (value === "loop") {
-      return Infinity;
-    }
-    return AUDIO_PLAY_COUNT_ROUNDS[value] || 1;
-  },
-
   isAutoPlaySequenceActive(sequenceId) {
     return Boolean(
       this.autoPlaySequence &&
@@ -153,28 +215,17 @@ Page({
   },
 
   buildAutoPlaySequence(sentence) {
-    const countValue = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
+    const config = getAudioAutoPlayConfig(this.data.settings);
     return {
       id: this.autoPlaySequenceId,
       sentenceId: sentence._id,
       englishText: String(sentence.english || ""),
-      chineseText: String(sentence.chinese || "").trim(),
       audioMode: sentence.audioMode,
       audioUrl: sentence.audioUrl || "",
       round: 1,
-      maxRounds: this.getAudioPlayRoundLimit(),
-      loop: countValue === "loop",
+      maxRounds: config.maxRounds,
       phase: "english",
     };
-  },
-
-  canAutoPlayChinese(sequence) {
-    return Boolean(
-      sequence &&
-      sequence.chineseText &&
-      this.data.settings &&
-      this.data.settings.speakChinese
-    );
   },
 
   async resolveAutoPlaySentenceAudio(sequence) {
@@ -232,50 +283,7 @@ Page({
     }
   },
 
-  scheduleAutoPlayChinese(sequence) {
-    if (!sequence || !this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-      return;
-    }
-    this.autoPlaySequence = {
-      ...sequence,
-      phase: "wait_chinese",
-    };
-    this.autoPlayChineseTimer = setTimeout(async () => {
-      this.autoPlayChineseTimer = null;
-      if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-        return;
-      }
-
-      const chineseRequestId = this.audioRequestId + 1;
-      this.audioRequestId = chineseRequestId;
-      this.autoPlaySequence = {
-        ...this.autoPlaySequence,
-        phase: "chinese",
-      };
-
-      try {
-        const chineseAudioUrl = await getChineseTtsPath(sequence.chineseText);
-        if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-          return;
-        }
-        if (!this.playAudio(chineseAudioUrl, chineseRequestId)) {
-          this.clearPendingAutoPlaySequence();
-        }
-      } catch (err) {
-        if (!this.isAutoPlaySequenceActive(sequence.id)) {
-          return;
-        }
-        console.error("[home] auto chinese audio failed", err);
-        this.clearPendingAutoPlaySequence();
-        wx.showToast({
-          title: getAudioErrorMessage(err),
-          icon: "none",
-        });
-      }
-    }, AUTO_PLAY_CHINESE_DELAY_MS);
-  },
-
-  async advanceAutoPlayRound(sequenceId) {
+  async replayAutoPlaySequence(sequenceId) {
     if (!this.isAutoPlaySequenceActive(sequenceId)) {
       return;
     }
@@ -283,17 +291,15 @@ Page({
     if (!sequence || !this.isCurrentAutoPlaySentence(sequence)) {
       return;
     }
-    if (!sequence.loop && sequence.round >= sequence.maxRounds) {
+    if (sequence.round >= sequence.maxRounds) {
       this.clearPendingAutoPlaySequence();
       return;
     }
-    const nextSequence = {
+    await this.playAutoPlayEnglish({
       ...sequence,
       round: sequence.round + 1,
       phase: "english",
-    };
-    this.autoPlaySequence = nextSequence;
-    await this.playAutoPlayEnglish(nextSequence);
+    });
   },
 
   handleAutoPlayAudioEvent(event) {
@@ -313,27 +319,25 @@ Page({
     }
 
     if (sequence.phase === "english") {
-      if (this.canAutoPlayChinese(sequence)) {
-        this.scheduleAutoPlayChinese(sequence);
-        return;
-      }
-      this.advanceAutoPlayRound(sequence.id);
-      return;
-    }
-
-    if (sequence.phase === "chinese") {
-      this.advanceAutoPlayRound(sequence.id);
+      this.replayAutoPlaySequence(sequence.id);
     }
   },
 
   buildSentenceViewModel(sentence, settings) {
+    const showChineseOverride =
+      typeof sentence.showChineseOverride === "boolean"
+        ? sentence.showChineseOverride
+        : typeof sentence.showChinese === "boolean"
+          ? sentence.showChinese
+          : null;
     return {
       ...sentence,
       globalIndex: Number(sentence.globalIndex),
       englishTokens: tokenizeSentence(sentence.english),
+      showChineseOverride,
       showChinese:
-        typeof sentence.showChinese === "boolean"
-          ? sentence.showChinese
+        typeof showChineseOverride === "boolean"
+          ? showChineseOverride
           : Boolean(settings.defaultShowChinese),
       // 解析图片URL，使用缓存
       resolvedImageUrl: resolveImageUrl(sentence),
@@ -376,6 +380,26 @@ Page({
         settings,
         counts: buildCounts(this.fullSentences),
         error: "",
+      },
+    });
+  },
+
+  applyGlobalChineseVisibility(settings) {
+    this.fullSentences = this.fullSentences.map((item, index) =>
+      this.buildSentenceViewModel(
+        {
+          ...item,
+          showChineseOverride: null,
+          globalIndex: index,
+        },
+        settings
+      )
+    );
+    this.rebuildSentenceIndexMap();
+    this.renderVisibleSentenceWindow(this.data.currentIndex, {
+      extraData: {
+        settings,
+        counts: buildCounts(this.fullSentences),
       },
     });
   },
@@ -573,25 +597,23 @@ Page({
     });
   },
 
-  // 图片加载完成回调
-  onImageLoad(e) {
-    // 图片加载完成，可以在这里添加一些优化逻辑
-    console.log('Image loaded:', e.detail);
-  },
+  onImageLoad() {},
 
-  // 图片加载失败回调
-  onImageError(e) {
-    console.error('Image load failed:', e.detail);
-  },
+  onImageError() {},
 
   updateSentenceAtIndex(index, patch) {
     if (index < 0 || index >= this.fullSentences.length) {
       return null;
     }
-    this.fullSentences[index] = {
-      ...this.fullSentences[index],
-      ...patch,
-    };
+    const settings = this.data.settings || getSettings();
+    this.fullSentences[index] = this.buildSentenceViewModel(
+      {
+        ...this.fullSentences[index],
+        ...patch,
+        globalIndex: index,
+      },
+      settings
+    );
     this.renderVisibleSentenceWindow(this.data.currentIndex, {
       extraData: {
         counts: buildCounts(this.fullSentences),
@@ -601,6 +623,9 @@ Page({
   },
 
   onSwiperChange(e) {
+    if (this.pendingSwiperTransition) {
+      return;
+    }
     const meta = this.buildWindowMeta(this.data.currentIndex);
     if (e.detail.current !== meta.current) {
       this.setData({
@@ -609,11 +634,43 @@ Page({
     }
   },
 
+  onSwiperAnimationFinish() {
+    if (!this.pendingSwiperTransition) {
+      return;
+    }
+    const { targetIndex, autoPlayAfterRender } = this.pendingSwiperTransition;
+    this.pendingSwiperTransition = null;
+    this.renderVisibleSentenceWindow(targetIndex, {
+      autoPlayAfterRender,
+    });
+  },
+
+  animateToIndex(targetIndex, options = {}) {
+    const localTarget = targetIndex - this.windowStart;
+    if (localTarget < 0 || localTarget >= this.data.sentences.length) {
+      this.pendingSwiperTransition = null;
+      this.renderVisibleSentenceWindow(targetIndex, options);
+      return;
+    }
+    if (localTarget === this.data.swiperCurrent) {
+      this.pendingSwiperTransition = null;
+      this.renderVisibleSentenceWindow(targetIndex, options);
+      return;
+    }
+    this.pendingSwiperTransition = {
+      targetIndex,
+      autoPlayAfterRender: Boolean(options.autoPlayAfterRender),
+    };
+    this.setData({
+      swiperCurrent: localTarget,
+    });
+  },
+
   onTapImage(e) {
     if (!this.requireActionAuth()) {
       return;
     }
-    const { index } = e.currentTarget.dataset;
+    const { index } = getEventDataset(e);
     const targetIndex = Number(index);
     if (Number.isNaN(targetIndex)) {
       return;
@@ -629,7 +686,7 @@ Page({
       });
     }
     this.updateSentenceAtIndex(sentence.globalIndex, {
-      showChinese: !sentence.showChinese,
+      showChineseOverride: !sentence.showChinese,
     });
   },
 
@@ -714,6 +771,7 @@ Page({
       return;
     }
     this.advanceRequestId += 1;
+    this.pendingSwiperTransition = null;
     const nextIndex = this.data.currentIndex - 1;
     if (nextIndex < 0) {
       wx.showToast({
@@ -722,8 +780,8 @@ Page({
       });
       return;
     }
-    this.setActiveIndex(nextIndex, {
-      autoPlayAfterRender: this.data.settings.autoPlayAudio,
+    this.animateToIndex(nextIndex, {
+      autoPlayAfterRender: isAutoPlayEnabled(this.data.settings),
     });
   },
 
@@ -741,9 +799,16 @@ Page({
     });
     saveSentenceState(currentSentence._id, {
       mastered,
-    }).catch((err) => {
-      console.error("[home] save sentence state failed", err);
-    });
+    })
+      .then(() => {
+        if (!mastered) {
+          return null;
+        }
+        return this.syncSentenceWordsAsLearned(currentSentence);
+      })
+      .catch((err) => {
+        console.error("[home] save sentence state failed", err);
+      });
 
     const nextIndex = currentIndex + 1;
     if (nextIndex >= this.fullSentences.length) {
@@ -755,15 +820,21 @@ Page({
     }
     const requestId = this.advanceRequestId + 1;
     this.advanceRequestId = requestId;
-    this.setActiveIndex(nextIndex, {
-      autoPlayAfterRender: this.data.settings.autoPlayAudio,
+    const accessPromise = this.ensureSentenceAccess(nextIndex);
+    await wait(CARD_STATE_FEEDBACK_MS);
+    if (requestId !== this.advanceRequestId) {
+      return;
+    }
+    this.animateToIndex(nextIndex, {
+      autoPlayAfterRender: isAutoPlayEnabled(this.data.settings),
     });
 
-    const allowed = await this.ensureSentenceAccess(nextIndex);
+    const allowed = await accessPromise;
     if (requestId !== this.advanceRequestId) {
       return;
     }
     if (!allowed) {
+      this.pendingSwiperTransition = null;
       this.setActiveIndex(currentIndex);
       return;
     }
@@ -792,6 +863,28 @@ Page({
     await saveSentenceState(currentSentence._id, {
       favorited: nextFavorited,
     });
+  },
+
+  async syncSentenceWordsAsLearned(sentence) {
+    const words = Array.from(new Set(extractWordsFromSentence((sentence && sentence.english) || "")));
+    if (!words.length) {
+      return;
+    }
+    try {
+      const result = await batchSetWordCustomTagged(words, true);
+      if (result.failureCount > 0) {
+        wx.showToast({
+          title: "部分单词已学状态同步失败",
+          icon: "none",
+        });
+      }
+    } catch (err) {
+      console.error("[home] sync sentence words as learned failed", err);
+      wx.showToast({
+        title: "部分单词已学状态同步失败",
+        icon: "none",
+      });
+    }
   },
 
   patchSentenceAudio(sentenceId, audioUrl) {
@@ -848,9 +941,82 @@ Page({
     }
   },
 
+  onToggleDefaultShowChinese() {
+    if (!this.requireActionAuth()) {
+      this.setData({
+        settings: getSettings(),
+      });
+      return;
+    }
+    const nextValue = !Boolean(this.data.settings && this.data.settings.defaultShowChinese);
+    const settings = updateSettings({
+      defaultShowChinese: nextValue,
+    });
+    this.applyGlobalChineseVisibility(settings);
+    wx.showToast({
+      title: nextValue ? "已显示中文" : "已隐藏中文",
+      icon: "none",
+    });
+  },
+
+  onCopyEnglish() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const sentence = this.data.currentSentence;
+    const english = String((sentence && sentence.english) || "").trim();
+    if (!english) {
+      wx.showToast({
+        title: "复制失败",
+        icon: "none",
+      });
+      return;
+    }
+    wx.setClipboardData({
+      data: english,
+      success: () => {
+        wx.showToast({
+          title: "已复制英文",
+          icon: "none",
+        });
+      },
+      fail: () => {
+        wx.showToast({
+          title: "复制失败",
+          icon: "none",
+        });
+      },
+    });
+  },
+
+  onCycleAudioPlayMode() {
+    if (!this.requireActionAuth()) {
+      this.setData({
+        settings: getSettings(),
+      });
+      return;
+    }
+    const nextMode = getNextAudioAutoPlayMode(this.data.settings && this.data.settings.audioAutoPlayMode);
+    const settings = updateSettings({
+      audioAutoPlayMode: nextMode,
+    });
+    this.setData({
+      settings,
+    });
+    this.clearPendingAutoPlaySequence();
+    stopAudio(this.audioOwner);
+    wx.showToast({
+      title: getAudioAutoPlayToast(nextMode),
+      icon: "none",
+    });
+    if (isAutoPlayEnabled(settings)) {
+      this.startAutoPlaySequence();
+    }
+  },
+
   async startAutoPlaySequence() {
     const sentence = this.data.currentSentence;
-    if (!sentence) {
+    if (!sentence || !isAutoPlayEnabled(this.data.settings)) {
       return;
     }
 
@@ -861,13 +1027,11 @@ Page({
   },
 
   async onPlayChineseAudio(e) {
-    if (!this.data.settings.speakChinese) {
-      return;
-    }
     if (!this.requireActionAuth()) {
       return;
     }
-    const chineseText = String((e.currentTarget.dataset && e.currentTarget.dataset.text) || "").trim();
+    const { text } = getEventDataset(e);
+    const chineseText = String(text || "").trim();
     if (!chineseText) {
       return;
     }
@@ -936,7 +1100,7 @@ Page({
     if (!this.requireActionAuth()) {
       return;
     }
-    const { word } = e.currentTarget.dataset;
+    const { word } = getEventDataset(e);
     if (!word) {
       return;
     }
@@ -1009,6 +1173,10 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextFavorited ? "已收藏" : "取消收藏",
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
@@ -1022,9 +1190,6 @@ Page({
 
   async onToggleWordCustomTag() {
     if (!this.requireActionAuth()) {
-      return;
-    }
-    if (!this.data.wordMarkMeta.isVip) {
       return;
     }
     const detail = this.data.wordDetail;
@@ -1050,12 +1215,16 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextCustomTagged ? `已加入${this.data.wordMarkMeta.customWordTagName}` : `已移出${this.data.wordMarkMeta.customWordTagName}`,
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
       });
       wx.showToast({
-        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        title: "更新标签失败",
         icon: "none",
       });
     }

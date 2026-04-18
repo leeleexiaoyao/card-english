@@ -23,6 +23,7 @@ const { createAudioOwner, playAudio: playGlobalAudio, stopAudio } = require("../
 
 const SENTENCE_DETAIL_CONTEXT_KEY = "sentence_detail_context_v1";
 const LIBRARY_PAGE_SIZE = 30;
+const SEARCH_DEBOUNCE_MS = 300;
 
 function getAudioErrorMessage(err) {
   const message = String((err && err.message) || err || "");
@@ -62,6 +63,9 @@ Page({
     wordModalError: "",
     wordDetail: null,
     wordQuery: "",
+    keyword: "",
+    searching: false,
+    searchResults: [],
     wordMarkMeta: {
       isVip: false,
       customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
@@ -71,6 +75,8 @@ Page({
   onLoad() {
     this.audioOwner = createAudioOwner("library");
     this.audioRequestId = 0;
+    this.searchTimer = null;
+    this.searchRequestId = 0;
     this.fullSentences = [];
     this.filteredSentenceIds = [];
     this.sentenceIndexMap = {};
@@ -101,6 +107,9 @@ Page({
   },
 
   onReachBottom() {
+    if (this.isSearchMode()) {
+      return;
+    }
     this.appendVisibleSentences();
   },
 
@@ -121,8 +130,20 @@ Page({
   },
 
   onUnload() {
+    this.clearSearchTimer();
     this.audioRequestId += 1;
     stopAudio(this.audioOwner);
+  },
+
+  clearSearchTimer() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+  },
+
+  isSearchMode() {
+    return Boolean(String(this.data.keyword || "").trim());
   },
 
   buildSentenceViewModel(sentence, index, options = {}) {
@@ -206,6 +227,9 @@ Page({
         error: "",
       },
     });
+    if (this.isSearchMode()) {
+      this.executeSearch(String(this.data.keyword || "").trim());
+    }
   },
 
   async loadData(options = {}) {
@@ -233,6 +257,9 @@ Page({
           loading: false,
         },
       });
+      if (this.isSearchMode()) {
+        this.executeSearch(String(this.data.keyword || "").trim());
+      }
       if (syncRemoteState) {
         this.syncSentenceStatesFromRemote(sentences.map((item) => item._id));
       }
@@ -262,13 +289,19 @@ Page({
           counts: buildCounts(this.fullSentences),
         },
       });
+      if (this.isSearchMode()) {
+        this.executeSearch(String(this.data.keyword || "").trim());
+      }
     } catch (err) {
       console.error("[library] syncSentenceStatesFromRemote failed", err);
     }
   },
 
-  ensurePreviewImageUrls() {
-    const previewList = this.data.visibleSentences.slice(0, 12);
+  ensurePreviewImageUrls(list = null) {
+    const sourceList = Array.isArray(list)
+      ? list
+      : (this.isSearchMode() ? this.data.searchResults : this.data.visibleSentences);
+    const previewList = sourceList.slice(0, 12);
     const cloudFileIds = previewList
       .map((item) => item.imageUrl)
       .filter((url) => url && url.startsWith("cloud://"));
@@ -316,6 +349,14 @@ Page({
             }
           : item
       ),
+      searchResults: this.data.searchResults.map((item) =>
+        item._id === sentenceId
+          ? {
+              ...item,
+              resolvedImageUrl,
+            }
+          : item
+      ),
     });
   },
 
@@ -330,8 +371,103 @@ Page({
     this.setData({
       activeFilter: filter,
     });
+    if (this.isSearchMode()) {
+      return;
+    }
     this.filteredSentenceIds = this.buildFilteredSentenceIds(filter);
     this.renderVisibleSentences();
+  },
+
+  onSearchInput(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const keyword = String((e.detail && e.detail.value) || "");
+    this.setData({
+      keyword,
+    });
+    const normalizedKeyword = keyword.trim();
+    this.clearSearchTimer();
+    if (!normalizedKeyword) {
+      this.searchRequestId += 1;
+      this.setData({
+        searching: false,
+        error: "",
+        searchResults: [],
+      });
+      return;
+    }
+    this.searchTimer = setTimeout(() => {
+      this.executeSearch(normalizedKeyword);
+    }, SEARCH_DEBOUNCE_MS);
+  },
+
+  onSearchConfirm(e) {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const keyword = String((e.detail && e.detail.value) || this.data.keyword || "").trim();
+    this.clearSearchTimer();
+    if (!keyword) {
+      this.setData({
+        keyword: "",
+        searching: false,
+        error: "",
+        searchResults: [],
+      });
+      return;
+    }
+    this.executeSearch(keyword);
+  },
+
+  onClearSearch() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    this.clearSearchTimer();
+    this.searchRequestId += 1;
+    this.setData({
+      keyword: "",
+      searching: false,
+      error: "",
+      searchResults: [],
+    });
+  },
+
+  executeSearch(keyword) {
+    const requestId = this.searchRequestId + 1;
+    this.searchRequestId = requestId;
+    const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+    this.setData({
+      searching: true,
+      error: "",
+    });
+    const source = this.fullSentences
+      .filter((item) => String(item.english || "").toLowerCase().includes(normalizedKeyword))
+      .map((item, index) =>
+        this.buildSentenceViewModel(item, this.sentenceIndexMap[item._id], {
+          tokenizeForDisplay: true,
+        })
+      );
+    if (requestId !== this.searchRequestId) {
+      return;
+    }
+    this.setData({
+      searchResults: source,
+      searching: false,
+    });
+    this.ensurePreviewImageUrls(source);
+  },
+
+  getCurrentSentenceList() {
+    return this.isSearchMode() ? this.data.searchResults : this.data.visibleSentences;
+  },
+
+  getCurrentSentenceContextIds() {
+    if (this.isSearchMode()) {
+      return this.data.searchResults.map((item) => item._id);
+    }
+    return this.filteredSentenceIds.slice();
   },
 
   onToggleDisplay(e) {
@@ -370,7 +506,7 @@ Page({
     wx.setStorageSync(SENTENCE_DETAIL_CONTEXT_KEY, {
       source: "library",
       filter: this.data.activeFilter,
-      ids: this.filteredSentenceIds.slice(),
+      ids: this.getCurrentSentenceContextIds(),
       updatedAt: Date.now(),
     });
     wx.navigateTo({
@@ -434,7 +570,7 @@ Page({
       return;
     }
     const { id } = e.currentTarget.dataset;
-    const sentence = this.data.visibleSentences.find((item) => item._id === id);
+    const sentence = this.getCurrentSentenceList().find((item) => item._id === id);
     if (!sentence) {
       return;
     }
@@ -456,9 +592,6 @@ Page({
   },
 
   async onPlayChineseAudio(e) {
-    if (!this.data.settings.speakChinese) {
-      return;
-    }
     if (!this.requireActionAuth()) {
       return;
     }
@@ -599,6 +732,10 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextFavorited ? "已收藏" : "取消收藏",
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
@@ -612,9 +749,6 @@ Page({
 
   async onToggleWordCustomTag() {
     if (!this.requireActionAuth()) {
-      return;
-    }
-    if (!this.data.wordMarkMeta.isVip) {
       return;
     }
     const detail = this.data.wordDetail;
@@ -640,12 +774,16 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextCustomTagged ? `已加入${this.data.wordMarkMeta.customWordTagName}` : `已移出${this.data.wordMarkMeta.customWordTagName}`,
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
       });
       wx.showToast({
-        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        title: "更新标签失败",
         icon: "none",
       });
     }

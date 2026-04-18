@@ -1,6 +1,7 @@
 const FREE_DAILY_SENTENCE_LIMIT = 2;
 const LIFETIME_VIP_PRODUCT_CODE = "lifetime_vip_99";
 const LIFETIME_VIP_PRICE_FEN = 9900;
+const DEFAULT_CUSTOM_WORD_TAG_NAME = "已学";
 
 function normalizeMembershipUser(user = {}) {
   return {
@@ -10,7 +11,7 @@ function normalizeMembershipUser(user = {}) {
     avatarUrl: user.avatarUrl || "/images/icons/avatar.png",
     profileCompleted: Boolean(user.profileCompleted),
     memberStatus: user.memberStatus || "free",
-    customWordTagName: String(user.customWordTagName || "易错词").trim() || "易错词",
+    customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
     memberPlanCode: user.memberPlanCode || "",
     memberActivatedAt: user.memberActivatedAt || null,
     memberExpireAt: user.memberExpireAt || null,

@@ -44,7 +44,7 @@ function normalizeUser(user = {}) {
     avatarUrl: user.avatarUrl || "/images/icons/avatar.png",
     profileCompleted: Boolean(user.profileCompleted),
     memberStatus: user.memberStatus || "free",
-    customWordTagName: String(user.customWordTagName || "易错词").trim() || "易错词",
+    customWordTagName: "已学",
     memberPlanCode: user.memberPlanCode || "",
     memberExpireAt: user.memberExpireAt || null,
     memberActivatedAt: user.memberActivatedAt || null,
@@ -56,6 +56,8 @@ function normalizeUser(user = {}) {
     updatedAt: user.updatedAt || null,
   };
 }
+
+const { normalizeSettings } = require("./utils/settings");
 
 App({
   isAuthenticated() {
@@ -316,16 +318,7 @@ App({
       authSource: cachedAuthSource && cachedAuthSource.route ? normalizeAuthSource(cachedAuthSource) : null,
       authPageOpening: false,
       authEnabled: authEnabled === "" ? Boolean(normalizedCachedUser) : Boolean(authEnabled),
-      settings: {
-        autoPlayAudio: false,
-        speakChinese: false,
-        audioPlayCount: "1",
-        defaultShowChinese: false,
-        playRate: 1,
-        voiceGender: "female",
-        speechRate: 5,
-        ...cachedSettings,
-      },
+      settings: normalizeSettings(cachedSettings),
     };
     if (!wx.cloud) {
       console.error("请使用 2.2.3 或以上的基础库以使用云能力");

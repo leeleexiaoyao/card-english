@@ -26,10 +26,26 @@ function buildHighlightTargets(detail = {}) {
 }
 
 function buildEnglishSegments(english = "", targets = new Set()) {
-  return tokenizeSentence(english).map((token) => ({
-    text: token.text,
-    highlighted: Boolean(token.isWord && targets.has(token.word)),
-  }));
+  return tokenizeSentence(english).reduce((segments, token) => {
+    if (token.isWord) {
+      segments.push({
+        text: token.text,
+        highlighted: targets.has(token.word),
+      });
+      return segments;
+    }
+
+    if (!segments.length) {
+      segments.push({
+        text: token.text,
+        highlighted: false,
+      });
+      return segments;
+    }
+
+    segments[segments.length - 1].text += token.text;
+    return segments;
+  }, []);
 }
 
 function decorateRelatedCards(detail = {}) {
@@ -200,6 +216,10 @@ Page({
           customTagged: state.customTagged,
         },
       });
+      wx.showToast({
+        title: nextFavorited ? "已收藏" : "取消收藏",
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         detail,
@@ -213,9 +233,6 @@ Page({
 
   async onToggleCustomTag() {
     if (!this.requireActionAuth()) {
-      return;
-    }
-    if (!this.data.isVip) {
       return;
     }
     const detail = this.data.detail;
@@ -241,12 +258,16 @@ Page({
           customTagged: state.customTagged,
         },
       });
+      wx.showToast({
+        title: nextCustomTagged ? `已加入${this.data.customWordTagName}` : `已移出${this.data.customWordTagName}`,
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         detail,
       });
       wx.showToast({
-        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        title: "更新标签失败",
         icon: "none",
       });
     }

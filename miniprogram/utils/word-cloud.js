@@ -42,6 +42,10 @@ function setDetailCache(cache) {
 
 function cleanText(raw = "") {
   return String(raw || "")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\\t/g, " ")
     .replace(/\r/g, "")
     .replace(/<[^>]+>/g, " ")
     .replace(/[ \t]+\n/g, "\n")

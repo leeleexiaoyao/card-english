@@ -1,0 +1,125 @@
+<view wx:if="{{currentSentence}}" class="content">
+  <view class="card-stage">
+    <swiper
+      class="card-swiper"
+      current="{{swiperCurrent}}"
+      duration="320"
+      easing-function="easeOutCubic"
+      enable-back-to-top="{{false}}"
+      disable-touch="{{disableTouch}}"
+      bindchange="onSwiperChange"
+      bindanimationfinish="onSwiperAnimationFinish"
+    >
+      <swiper-item wx:for="{{sentences}}" wx:key="_id">
+        <view class="card-slide">
+          <view class="card-shell">
+            <view class="card-visual-shell" bindtap="onTapImage" data-index="{{index}}">
+              <view class="card-visual">
+                <image
+                  class="card-bg"
+                  src="{{item.resolvedImageUrl || item.imageUrl}}"
+                  mode="aspectFit"
+                  bindload="onImageLoad"
+                  binderror="onImageError"
+                />
+                <view class="card-overlay"></view>
+              </view>
+            </view>
+
+            <view
+              wx:if="{{showTopActions}}"
+              class="card-top-actions"
+              catchtap="noop"
+            >
+              <view class="top-action-btn" catchtap="onToggleDefaultShowChinese">
+                <image
+                  class="top-action-icon"
+                  src="{{defaultShowChinese ? '/assets/icon/homepage/icon_showchinese.svg' : '/assets/icon/homepage/icon_hidechinese.svg'}}"
+                  mode="aspectFit"
+                />
+              </view>
+              <view class="top-action-btn" catchtap="onCopyEnglish">
+                <image
+                  class="top-action-icon"
+                  src="/assets/icon/homepage/icon_copy.svg"
+                  mode="aspectFit"
+                />
+              </view>
+              <view class="top-action-btn" catchtap="onCycleAudioPlayMode">
+                <image
+                  class="top-action-icon"
+                  src="{{audioAutoPlayMode === 'off' ? '/assets/icon/homepage/icon_no loop.svg' : audioAutoPlayMode === 'single' ? '/assets/icon/homepage/icon_single loop.svg' : audioAutoPlayMode === 'five' ? '/assets/icon/homepage/icon_5 loop.svg' : '/assets/icon/homepage/icon_loop.svg'}}"
+                  mode="aspectFit"
+                />
+              </view>
+            </view>
+
+            <view class="card-bottom">
+              <view class="card-bottom-mask"></view>
+              <view class="card-bottom-content {{item.showChinese ? 'content-expanded' : 'content-collapsed'}}">
+                <view class="progress-row">
+                  <text class="progress">{{item.order < 10 ? '0' + item.order : item.order}}/{{counts.total}}</text>
+                  <image
+                    wx:if="{{currentSentence && currentSentence._id === item._id}}"
+                    class="card-audio-btn"
+                    src="/assets/icon/homepage/icon_sound.svg"
+                    catchtap="onPlaySentenceAudio"
+                  />
+                </view>
+                <view class="sentence-line">
+                  <block wx:for="{{item.englishTokens}}" wx:key="index">
+                    <text wx:if="{{item.isWord}}" space="ensp" class="word-token" catchtap="onTapWord" data-word="{{item.word}}">{{item.text}}</text>
+                    <text wx:else space="ensp" class="plain-token">{{item.text}}</text>
+                  </block>
+                </view>
+                <view wx:if="{{item.chinese}}" class="chinese-line" catchtap="onPlayChineseAudio" data-text="{{item.chinese}}">
+                  <text class="chinese-text">{{item.chinese}}</text>
+                  <image
+                    class="chinese-audio-btn"
+                    src="/assets/icon/homepage/icon_sound.svg"
+                    catchtap="onPlayChineseAudio"
+                    data-text="{{item.chinese}}"
+                  />
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+  </view>
+
+  <view class="bottom-actions">
+    <view class="action-btn action-btn-circle {{currentIndex === 0 ? 'action-btn-disabled' : ''}}" bindtap="onGoBack">
+      <image class="action-icon action-icon-back" src="/assets/icon/homepage/icon_back.svg" />
+    </view>
+    <view
+      class="action-btn action-btn-wide action-btn-unmastered {{currentSentence && currentSentence.mastered === false ? 'action-btn-active' : ''}}"
+      bindtap="onMarkUnmastered"
+    >
+      <image
+        class="action-icon action-icon-state"
+        src="{{currentSentence && currentSentence.mastered === false ? '/assets/icon/homepage/icon_unmastered_active.svg' : '/assets/icon/homepage/icon_unmastered.svg'}}"
+      />
+      <text class="action-label">未掌握</text>
+    </view>
+    <view
+      class="action-btn action-btn-wide action-btn-mastered {{currentSentence && currentSentence.mastered === true ? 'action-btn-active' : ''}}"
+      bindtap="onMarkMastered"
+    >
+      <image
+        class="action-icon action-icon-state"
+        src="{{currentSentence && currentSentence.mastered === true ? '/assets/icon/homepage/icon_mastered_active.svg' : '/assets/icon/homepage/icon_mastered.svg'}}"
+      />
+      <text class="action-label">已掌握</text>
+    </view>
+    <view class="action-btn action-btn-circle {{currentSentence && currentSentence.favorited ? 'action-btn-favorited' : ''}}" bindtap="onToggleFavorited">
+      <image
+        class="action-icon action-icon-favorite"
+        src="{{currentSentence && currentSentence.favorited ? '/assets/icon/homepage/icon_collected_active.svg' : '/assets/icon/homepage/icon_collect.svg'}}"
+      />
+    </view>
+  </view>
+
+  <view wx:if="{{!imageHintDismissed}}" class="image-hint">提示：点击图片可查看释义</view>
+</view>

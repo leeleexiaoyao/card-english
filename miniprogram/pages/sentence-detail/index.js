@@ -8,10 +8,11 @@ const {
   preloadImageUrls,
   resolveImageUrl,
 } = require("../../utils/sentence-repo");
-const { getSettings } = require("../../utils/settings");
-const { tokenizeSentence } = require("../../utils/word");
+const { getSettings, updateSettings } = require("../../utils/settings");
+const { extractWordsFromSentence, tokenizeSentence } = require("../../utils/word");
 const { getWordDetail } = require("../../utils/dictionary");
 const {
+  batchSetWordCustomTagged,
   DEFAULT_CUSTOM_WORD_TAG_NAME,
   batchGetWordMarks,
   getWordMarkMeta,
@@ -28,11 +29,25 @@ const {
 } = require("../../utils/audio-player");
 
 const SENTENCE_DETAIL_CONTEXT_KEY = "sentence_detail_context_v1";
-const AUTO_PLAY_CHINESE_DELAY_MS = 1000;
-const AUDIO_PLAY_COUNT_ROUNDS = {
-  "1": 1,
-  "3": 3,
-  "5": 5,
+const HOME_IMAGE_HINT_DISMISSED_KEY = "home_image_hint_dismissed_v1";
+const AUDIO_AUTO_PLAY_MODE_ORDER = ["off", "single", "five", "loop"];
+const AUDIO_AUTO_PLAY_CONFIG = {
+  off: {
+    enabled: false,
+    maxRounds: 0,
+  },
+  single: {
+    enabled: true,
+    maxRounds: 1,
+  },
+  five: {
+    enabled: true,
+    maxRounds: 5,
+  },
+  loop: {
+    enabled: true,
+    maxRounds: Infinity,
+  },
 };
 
 function getAudioErrorMessage(err) {
@@ -46,6 +61,54 @@ function getAudioErrorMessage(err) {
   return "句子发音暂不可用";
 }
 
+function getEventDataset(event) {
+  const detail = (event && event.detail && typeof event.detail === "object") ? event.detail : {};
+  const dataset = (event && event.currentTarget && event.currentTarget.dataset) || {};
+  return {
+    ...detail,
+    ...dataset,
+  };
+}
+
+function normalizeAudioAutoPlayMode(mode) {
+  if (mode === "single" || mode === "five" || mode === "loop" || mode === "off") {
+    return mode;
+  }
+  return "off";
+}
+
+function getAudioAutoPlayMode(settings = {}) {
+  return normalizeAudioAutoPlayMode(settings.audioAutoPlayMode);
+}
+
+function isAutoPlayEnabled(settings = {}) {
+  return getAudioAutoPlayMode(settings) !== "off";
+}
+
+function getAudioAutoPlayConfig(settings = {}) {
+  return AUDIO_AUTO_PLAY_CONFIG[getAudioAutoPlayMode(settings)] || AUDIO_AUTO_PLAY_CONFIG.off;
+}
+
+function getNextAudioAutoPlayMode(mode) {
+  const currentMode = normalizeAudioAutoPlayMode(mode);
+  const currentIndex = AUDIO_AUTO_PLAY_MODE_ORDER.indexOf(currentMode);
+  return AUDIO_AUTO_PLAY_MODE_ORDER[(currentIndex + 1) % AUDIO_AUTO_PLAY_MODE_ORDER.length];
+}
+
+function getAudioAutoPlayToast(mode) {
+  switch (normalizeAudioAutoPlayMode(mode)) {
+    case "single":
+      return "已开启自动播报";
+    case "five":
+      return "5次播报";
+    case "loop":
+      return "循环播报";
+    case "off":
+    default:
+      return "已关闭自动播报";
+  }
+}
+
 Page({
   data: {
     loading: true,
@@ -54,9 +117,13 @@ Page({
     source: "",
     settings: getSettings(),
     sentences: [],
+    counts: {
+      total: 0,
+    },
     currentIndex: 0,
     swiperCurrent: 0,
     currentSentence: null,
+    imageHintDismissed: Boolean(wx.getStorageSync(HOME_IMAGE_HINT_DISMISSED_KEY)),
     wordModalVisible: false,
     wordModalLoading: false,
     wordModalError: "",
@@ -128,14 +195,6 @@ Page({
     this.autoPlayChineseTimer = null;
   },
 
-  getAudioPlayRoundLimit() {
-    const value = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
-    if (value === "loop") {
-      return Infinity;
-    }
-    return AUDIO_PLAY_COUNT_ROUNDS[value] || 1;
-  },
-
   isAutoPlaySequenceActive(sequenceId) {
     return Boolean(
       this.autoPlaySequence &&
@@ -150,28 +209,17 @@ Page({
   },
 
   buildAutoPlaySequence(sentence) {
-    const countValue = String((this.data.settings && this.data.settings.audioPlayCount) || "1");
+    const config = getAudioAutoPlayConfig(this.data.settings);
     return {
       id: this.autoPlaySequenceId,
       sentenceId: sentence._id,
       englishText: String(sentence.english || ""),
-      chineseText: String(sentence.chinese || "").trim(),
       audioMode: sentence.audioMode,
       audioUrl: sentence.audioUrl || "",
       round: 1,
-      maxRounds: this.getAudioPlayRoundLimit(),
-      loop: countValue === "loop",
+      maxRounds: config.maxRounds,
       phase: "english",
     };
-  },
-
-  canAutoPlayChinese(sequence) {
-    return Boolean(
-      sequence &&
-      sequence.chineseText &&
-      this.data.settings &&
-      this.data.settings.speakChinese
-    );
   },
 
   async resolveAutoPlaySentenceAudio(sequence) {
@@ -228,50 +276,7 @@ Page({
     }
   },
 
-  scheduleAutoPlayChinese(sequence) {
-    if (!sequence || !this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-      return;
-    }
-    this.autoPlaySequence = {
-      ...sequence,
-      phase: "wait_chinese",
-    };
-    this.autoPlayChineseTimer = setTimeout(async () => {
-      this.autoPlayChineseTimer = null;
-      if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-        return;
-      }
-
-      const chineseRequestId = this.audioRequestId + 1;
-      this.audioRequestId = chineseRequestId;
-      this.autoPlaySequence = {
-        ...this.autoPlaySequence,
-        phase: "chinese",
-      };
-
-      try {
-        const chineseAudioUrl = await getChineseTtsPath(sequence.chineseText);
-        if (!this.isAutoPlaySequenceActive(sequence.id) || !this.isCurrentAutoPlaySentence(sequence)) {
-          return;
-        }
-        if (!this.playAudio(chineseAudioUrl, chineseRequestId)) {
-          this.clearPendingAutoPlaySequence();
-        }
-      } catch (err) {
-        if (!this.isAutoPlaySequenceActive(sequence.id)) {
-          return;
-        }
-        console.error("[sentence-detail] auto chinese audio failed", err);
-        this.clearPendingAutoPlaySequence();
-        wx.showToast({
-          title: getAudioErrorMessage(err),
-          icon: "none",
-        });
-      }
-    }, AUTO_PLAY_CHINESE_DELAY_MS);
-  },
-
-  async advanceAutoPlayRound(sequenceId) {
+  async replayAutoPlaySequence(sequenceId) {
     if (!this.isAutoPlaySequenceActive(sequenceId)) {
       return;
     }
@@ -279,17 +284,15 @@ Page({
     if (!sequence || !this.isCurrentAutoPlaySentence(sequence)) {
       return;
     }
-    if (!sequence.loop && sequence.round >= sequence.maxRounds) {
+    if (sequence.round >= sequence.maxRounds) {
       this.clearPendingAutoPlaySequence();
       return;
     }
-    const nextSequence = {
+    await this.playAutoPlayEnglish({
       ...sequence,
       round: sequence.round + 1,
       phase: "english",
-    };
-    this.autoPlaySequence = nextSequence;
-    await this.playAutoPlayEnglish(nextSequence);
+    });
   },
 
   handleAutoPlayAudioEvent(event) {
@@ -309,27 +312,25 @@ Page({
     }
 
     if (sequence.phase === "english") {
-      if (this.canAutoPlayChinese(sequence)) {
-        this.scheduleAutoPlayChinese(sequence);
-        return;
-      }
-      this.advanceAutoPlayRound(sequence.id);
-      return;
-    }
-
-    if (sequence.phase === "chinese") {
-      this.advanceAutoPlayRound(sequence.id);
+      this.replayAutoPlaySequence(sequence.id);
     }
   },
 
   buildSentenceViewModel(sentence, settings) {
+    const showChineseOverride =
+      typeof sentence.showChineseOverride === "boolean"
+        ? sentence.showChineseOverride
+        : typeof sentence.showChinese === "boolean"
+          ? sentence.showChinese
+          : null;
     return {
       ...sentence,
       globalIndex: Number(sentence.globalIndex),
       englishTokens: tokenizeSentence(sentence.english),
+      showChineseOverride,
       showChinese:
-        typeof sentence.showChinese === "boolean"
-          ? sentence.showChinese
+        typeof showChineseOverride === "boolean"
+          ? showChineseOverride
           : Boolean(settings.defaultShowChinese),
       resolvedImageUrl: resolveImageUrl(sentence),
     };
@@ -360,6 +361,9 @@ Page({
     this.setData({
       settings,
       sentences: merged,
+      counts: {
+        total: merged.length,
+      },
       sentenceId: sentence ? sentence._id : this.data.sentenceId,
       currentIndex: index,
       swiperCurrent: index,
@@ -367,6 +371,25 @@ Page({
       error: "",
     }, () => {
       this.ensureVisibleImageUrls(index);
+    });
+  },
+
+  applyGlobalChineseVisibility(settings) {
+    const merged = this.data.sentences.map((item, index) =>
+      this.buildSentenceViewModel(
+        {
+          ...item,
+          showChineseOverride: null,
+          globalIndex: Number(item.globalIndex >= 0 ? item.globalIndex : index),
+        },
+        settings
+      )
+    );
+    const sentence = merged[this.data.currentIndex] || null;
+    this.setData({
+      settings,
+      sentences: merged,
+      currentSentence: sentence,
     });
   },
 
@@ -422,6 +445,9 @@ Page({
       }
       this.setData({
         sentences: merged,
+        counts: {
+          total: merged.length,
+        },
       });
       this.setCurrentSentence(index);
     } catch (err) {
@@ -513,11 +539,24 @@ Page({
     if (!currentSentence) {
       return;
     }
+    if (!this.data.imageHintDismissed) {
+      wx.setStorageSync(HOME_IMAGE_HINT_DISMISSED_KEY, true);
+      this.setData({
+        imageHintDismissed: true,
+      });
+    }
+    const settings = this.data.settings || getSettings();
     const sentences = this.data.sentences.slice();
-    sentences[currentIndex] = {
-      ...sentences[currentIndex],
-      showChinese: !sentences[currentIndex].showChinese,
-    };
+    sentences[currentIndex] = this.buildSentenceViewModel(
+      {
+        ...sentences[currentIndex],
+        globalIndex: Number(
+          sentences[currentIndex].globalIndex >= 0 ? sentences[currentIndex].globalIndex : currentIndex
+        ),
+        showChineseOverride: !sentences[currentIndex].showChinese,
+      },
+      settings
+    );
     this.setData({
       sentences,
       currentSentence: sentences[currentIndex],
@@ -594,9 +633,13 @@ Page({
       currentSentence: sentence,
     });
     this.ensureVisibleImageUrls(nextIndex);
-    if (this.data.settings.autoPlayAudio) {
+    if (isAutoPlayEnabled(this.data.settings)) {
       this.startAutoPlaySequence();
     }
+  },
+
+  onGoBack() {
+    this.goPrev();
   },
 
   async ensureSentenceAccess(targetIndex) {
@@ -641,11 +684,16 @@ Page({
     if (currentIndex < 0 || currentIndex >= sentences.length) {
       return;
     }
+    const settings = this.data.settings || getSettings();
     const list = sentences.slice();
-    list[currentIndex] = {
-      ...list[currentIndex],
-      ...patch,
-    };
+    list[currentIndex] = this.buildSentenceViewModel(
+      {
+        ...list[currentIndex],
+        ...patch,
+        globalIndex: Number(list[currentIndex].globalIndex >= 0 ? list[currentIndex].globalIndex : currentIndex),
+      },
+      settings
+    );
     this.setData({
       sentences: list,
       currentSentence: list[currentIndex],
@@ -666,6 +714,51 @@ Page({
     });
   },
 
+  async onMarkMastered() {
+    const sentence = this.data.currentSentence;
+    if (!sentence) {
+      return;
+    }
+    this.patchCurrentSentence({
+      mastered: true,
+    });
+    await saveSentenceState(sentence._id, {
+      mastered: true,
+    });
+    this.syncSentenceWordsAsLearned(sentence);
+    if (this.data.currentIndex < this.data.sentences.length - 1) {
+      const allowed = await this.ensureSentenceAccess(this.data.currentIndex + 1);
+      if (!allowed) {
+        return;
+      }
+      this.setData({
+        swiperCurrent: this.data.currentIndex + 1,
+      });
+    }
+  },
+
+  async onMarkUnmastered() {
+    const sentence = this.data.currentSentence;
+    if (!sentence) {
+      return;
+    }
+    this.patchCurrentSentence({
+      mastered: false,
+    });
+    await saveSentenceState(sentence._id, {
+      mastered: false,
+    });
+    if (this.data.currentIndex < this.data.sentences.length - 1) {
+      const allowed = await this.ensureSentenceAccess(this.data.currentIndex + 1);
+      if (!allowed) {
+        return;
+      }
+      this.setData({
+        swiperCurrent: this.data.currentIndex + 1,
+      });
+    }
+  },
+
   async onToggleFavorited() {
     const sentence = this.data.currentSentence;
     if (!sentence) {
@@ -678,6 +771,28 @@ Page({
     await saveSentenceState(sentence._id, {
       favorited,
     });
+  },
+
+  async syncSentenceWordsAsLearned(sentence) {
+    const words = Array.from(new Set(extractWordsFromSentence((sentence && sentence.english) || "")));
+    if (!words.length) {
+      return;
+    }
+    try {
+      const result = await batchSetWordCustomTagged(words, true);
+      if (result.failureCount > 0) {
+        wx.showToast({
+          title: "部分单词已学状态同步失败",
+          icon: "none",
+        });
+      }
+    } catch (err) {
+      console.error("[sentence-detail] sync sentence words as learned failed", err);
+      wx.showToast({
+        title: "部分单词已学状态同步失败",
+        icon: "none",
+      });
+    }
   },
 
   patchSentenceAudio(sentenceId, audioUrl) {
@@ -747,7 +862,7 @@ Page({
 
   async startAutoPlaySequence() {
     const sentence = this.data.currentSentence;
-    if (!sentence) {
+    if (!sentence || !isAutoPlayEnabled(this.data.settings)) {
       return;
     }
 
@@ -758,10 +873,8 @@ Page({
   },
 
   async onPlayChineseAudio(e) {
-    if (!this.data.settings.speakChinese) {
-      return;
-    }
-    const chineseText = String((e.currentTarget.dataset && e.currentTarget.dataset.text) || "").trim();
+    const { text } = getEventDataset(e);
+    const chineseText = String(text || "").trim();
     if (!chineseText) {
       return;
     }
@@ -783,6 +896,79 @@ Page({
         title: getAudioErrorMessage(err),
         icon: "none",
       });
+    }
+  },
+
+  onToggleDefaultShowChinese() {
+    if (!this.requireActionAuth()) {
+      this.setData({
+        settings: getSettings(),
+      });
+      return;
+    }
+    const nextValue = !Boolean(this.data.settings && this.data.settings.defaultShowChinese);
+    const settings = updateSettings({
+      defaultShowChinese: nextValue,
+    });
+    this.applyGlobalChineseVisibility(settings);
+    wx.showToast({
+      title: nextValue ? "已显示中文" : "已隐藏中文",
+      icon: "none",
+    });
+  },
+
+  onCopyEnglish() {
+    if (!this.requireActionAuth()) {
+      return;
+    }
+    const sentence = this.data.currentSentence;
+    const english = String((sentence && sentence.english) || "").trim();
+    if (!english) {
+      wx.showToast({
+        title: "复制失败",
+        icon: "none",
+      });
+      return;
+    }
+    wx.setClipboardData({
+      data: english,
+      success: () => {
+        wx.showToast({
+          title: "已复制英文",
+          icon: "none",
+        });
+      },
+      fail: () => {
+        wx.showToast({
+          title: "复制失败",
+          icon: "none",
+        });
+      },
+    });
+  },
+
+  onCycleAudioPlayMode() {
+    if (!this.requireActionAuth()) {
+      this.setData({
+        settings: getSettings(),
+      });
+      return;
+    }
+    const nextMode = getNextAudioAutoPlayMode(this.data.settings && this.data.settings.audioAutoPlayMode);
+    const settings = updateSettings({
+      audioAutoPlayMode: nextMode,
+    });
+    this.setData({
+      settings,
+    });
+    this.clearPendingAutoPlaySequence();
+    stopAudio(this.audioOwner);
+    wx.showToast({
+      title: getAudioAutoPlayToast(nextMode),
+      icon: "none",
+    });
+    if (isAutoPlayEnabled(settings)) {
+      this.startAutoPlaySequence();
     }
   },
 
@@ -829,7 +1015,7 @@ Page({
     if (!this.requireActionAuth()) {
       return;
     }
-    const { word } = e.currentTarget.dataset;
+    const { word } = getEventDataset(e);
     if (!word) {
       return;
     }
@@ -902,6 +1088,10 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextFavorited ? "已收藏" : "取消收藏",
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
@@ -915,9 +1105,6 @@ Page({
 
   async onToggleWordCustomTag() {
     if (!this.requireActionAuth()) {
-      return;
-    }
-    if (!this.data.wordMarkMeta.isVip) {
       return;
     }
     const detail = this.data.wordDetail;
@@ -943,12 +1130,16 @@ Page({
           customTagged: Boolean(state.customTagged),
         },
       });
+      wx.showToast({
+        title: nextCustomTagged ? `已加入${this.data.wordMarkMeta.customWordTagName}` : `已移出${this.data.wordMarkMeta.customWordTagName}`,
+        icon: "none",
+      });
     } catch (err) {
       this.setData({
         wordDetail: detail,
       });
       wx.showToast({
-        title: err.needVip ? "该功能仅限 VIP" : "更新标签失败",
+        title: "更新标签失败",
         icon: "none",
       });
     }

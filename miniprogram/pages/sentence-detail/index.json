@@ -1,7 +1,9 @@
 {
   "navigationBarTitleText": "详情",
+  "navigationBarBackgroundColor": "#F5F6F8",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
-    "word-modal": "/components/wordModal/index"
+    "sentence-card-viewer": "../../components/sentenceCardViewer/index",
+    "word-modal": "../../components/wordModal/index"
   }
 }
-

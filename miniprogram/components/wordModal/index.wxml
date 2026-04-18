@@ -1,104 +1,111 @@
-<view wx:if="{{visible}}" class="modal-mask" catchtouchmove="noop">
-  <view class="modal-card" catchtap="noop">
+<view
+  wx:if="{{rendered}}"
+  class="modal-mask {{closing ? 'modal-mask-closing' : 'modal-mask-opening'}}"
+  catchtouchmove="noop"
+>
+  <view class="modal-card {{closing ? 'modal-card-closing' : 'modal-card-opening'}}" catchtap="noop">
     <view class="modal-header">
       <text class="modal-title">单词详情</text>
       <text class="modal-close" bindtap="onClose">×</text>
     </view>
 
-    <view class="modal-summary">
-      <view class="word-line">
-        <view class="word-main">
-          <text class="word-text">{{detail.word || queryWord || '-'}}</text>
-          <text wx:if="{{detail && detail.phonetic}}" class="phonetic-text">{{detail.phonetic}}</text>
-          <view wx:elif="{{loading}}" class="summary-skeleton summary-skeleton-short"></view>
-        </view>
-        <view wx:if="{{detail}}" class="summary-actions">
-          <view class="action-btn {{detail.favorited ? 'active' : ''}}" catchtap="onToggleFavorite">收藏</view>
-          <view
-            wx:if="{{isVip}}"
-            class="action-btn {{detail.customTagged ? 'active custom' : ''}}"
-            catchtap="onToggleCustomTag"
-          >
-            {{customWordTagName}}
-          </view>
-          <button wx:if="{{detail.audio}}" class="play-btn" bindtap="onPlayAudio">播放</button>
-        </view>
-      </view>
-      <view wx:if="{{!loading && detail && detail.posText}}" class="meta-line">
-        <text class="meta-tag">{{detail.posText}}</text>
-      </view>
-      <view wx:elif="{{loading}}" class="meta-line">
-        <view class="summary-skeleton summary-skeleton-tag"></view>
-      </view>
-    </view>
-
     <scroll-view scroll-y class="modal-scroll">
       <view wx:if="{{loading}}" class="modal-content">
-        <view class="skeleton-section">
+        <view class="hero skeleton-hero">
+          <view class="skeleton-title skeleton-title-large"></view>
+          <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+        <view class="card skeleton-section">
           <view class="skeleton-title"></view>
           <view class="skeleton-line"></view>
           <view class="skeleton-line skeleton-line-short"></view>
         </view>
-        <view class="skeleton-section">
+        <view class="card skeleton-section">
           <view class="skeleton-title"></view>
-          <view class="skeleton-line"></view>
-        </view>
-        <view class="skeleton-section">
-          <view class="skeleton-title"></view>
-          <view class="skeleton-line"></view>
           <view class="skeleton-line"></view>
           <view class="skeleton-line skeleton-line-short"></view>
         </view>
       </view>
 
       <view wx:elif="{{error}}" class="modal-content">
-        <view class="section">
+        <view class="card">
           <view class="line-text">{{error}}</view>
         </view>
       </view>
 
-      <view wx:elif="{{detail}}" class="modal-content">
-        <view wx:if="{{detail.definitionText}}" class="section">
-          <view class="section-title">英文释义</view>
-          <view class="line-text">{{detail.definitionText}}</view>
-        </view>
-
-        <view wx:if="{{detail.translationText || detail.chineseMeaning}}" class="section">
-          <view class="section-title">中文释义</view>
-          <view class="line-text">{{detail.translationText || detail.chineseMeaning}}</view>
-        </view>
-
-        <view wx:if="{{detail.tagText}}" class="section">
-          <view class="section-title">标签</view>
-          <view class="line-text">{{detail.tagText}}</view>
-        </view>
-
-        <view wx:if="{{detail.exchangeText || detail.forms.length}}" class="section">
-          <view class="section-title">词形变化</view>
-          <view wx:if="{{detail.exchangeText}}" class="line-text">{{detail.exchangeText}}</view>
-          <view wx:elif="{{detail.forms.length}}">
-            <view wx:for="{{detail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+      <view wx:elif="{{displayDetail}}" class="modal-content content">
+        <view class="hero">
+          <view class="hero-main">
+            <view class="word-line">
+              <text class="word">{{displayDetail.word || queryWord || '-'}}</text>
+            </view>
+            <view wx:if="{{displayDetail.phonetic || displayDetail.audio}}" class="phonetic-line">
+              <text class="phonetic">{{displayDetail.phonetic}}</text>
+            <view wx:if="{{displayDetail.audio}}" class="phonetic-play-btn" bindtap="onPlayAudio">
+                <image class="phonetic-play-icon phonetic-play-icon-blue" src="/assets/icon/homepage/icon_sound.svg" mode="aspectFit" />
+              </view>
+            </view>
+            <view wx:if="{{displayDetail.posText}}" class="meta-line">
+              <text class="meta-tag">{{displayDetail.posText}}</text>
+            </view>
+          </view>
+          <view class="hero-actions">
+            <view class="favorite-btn {{displayDetail.favorited ? 'active' : ''}}" catchtap="onToggleFavorite">
+              <image
+                class="favorite-icon"
+                src="{{displayDetail.favorited ? '/assets/icon/homepage/icon_collected.svg' : '/assets/icon/homepage/icon_collect.svg'}}"
+                mode="aspectFit"
+              />
+            </view>
           </view>
         </view>
 
-        <view class="section">
-          <view class="section-title">卡片释义</view>
-          <view wx:if="{{detail.relatedCards.length}}">
+        <view wx:if="{{displayDetail.definitionText}}" class="card">
+          <view class="card-title">英文释义</view>
+          <view class="line-text">{{displayDetail.definitionText}}</view>
+        </view>
+
+        <view wx:if="{{displayDetail.translationText || displayDetail.chineseMeaning}}" class="card">
+          <view class="card-title">中文释义</view>
+          <view class="line-text">{{displayDetail.translationText || displayDetail.chineseMeaning}}</view>
+        </view>
+
+        <view wx:if="{{displayDetail.exchangeText || displayDetail.forms.length}}" class="card">
+          <view class="card-title">词形变化</view>
+          <view wx:if="{{displayDetail.exchangeText}}" class="line-text">{{displayDetail.exchangeText}}</view>
+          <view wx:elif="{{displayDetail.forms.length}}">
+            <view wx:for="{{displayDetail.forms}}" wx:key="label" class="line-text">{{item.label}}：{{item.value}}</view>
+          </view>
+        </view>
+
+        <view wx:if="{{showRelatedCards && displayDetail.relatedCards.length}}" class="card">
+          <view class="card-title">卡片释义</view>
+          <view wx:if="{{displayDetail.relatedCards.length}}">
             <view
-              wx:for="{{detail.relatedCards}}"
+              wx:for="{{displayDetail.relatedCards}}"
               wx:key="id"
               class="related-card-item"
               data-id="{{item.id}}"
               bindtap="onOpenCard"
             >
               <view class="related-card-order">卡片 {{item.order}}</view>
-              <view class="related-card-english">{{item.english}}</view>
+              <view class="related-card-english"><text wx:for="{{item.englishSegments}}" wx:key="index" wx:for-item="segment" class="{{segment.highlighted ? 'highlight-word' : ''}}">{{segment.text}}</text></view>
               <view class="related-card-chinese">{{item.chinese}}</view>
             </view>
           </view>
-          <view wx:else class="line-text">当前词没有命中卡片内容</view>
         </view>
       </view>
     </scroll-view>
+
+    <view wx:if="{{displayDetail}}" class="modal-bottom-action" catchtap="noop">
+      <view class="bottom-learn-btn {{displayDetail.customTagged ? 'active' : ''}}" catchtap="onToggleCustomTag">
+        <image
+          class="bottom-learn-icon"
+          src="{{displayDetail.customTagged ? '/assets/icon/homepage/icon_mastered_active.svg' : '/assets/icon/homepage/icon_mastered.svg'}}"
+          mode="aspectFit"
+        />
+        <text class="bottom-learn-label">{{customWordTagName}}</text>
+      </view>
+    </view>
   </view>
 </view>
