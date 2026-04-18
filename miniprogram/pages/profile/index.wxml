@@ -1,7 +1,7 @@
 <view class="page">
   <view class="card profile-card">
     <button
-      wx:if="{{showProfileEditor}}"
+      wx:if="{{profile.loggedIn}}"
       class="avatar-picker profile-avatar-picker"
       open-type="chooseAvatar"
       bindchooseavatar="onChooseAvatar"
@@ -10,7 +10,20 @@
     </button>
     <image wx:else class="avatar" src="{{profile.avatarUrl}}" mode="aspectFit" />
     <view class="profile-main">
-      <view class="name">{{profile.nickName}}</view>
+      <input
+        wx:if="{{profile.loggedIn && editingNickName}}"
+        class="name-input"
+        type="nickname"
+        value="{{editNickName}}"
+        focus="{{editingNickName}}"
+        maxlength="20"
+        bindinput="onNickNameInput"
+        bindblur="onNickNameBlur"
+        bindconfirm="onNickNameConfirm"
+      />
+      <view wx:else class="name" bindtap="onStartNickNameEdit">
+        {{profile.nickName}}
+      </view>
       <view wx:if="{{profile.loggedIn}}" class="role-tag role-tag-block {{profile.memberStatus === 'vip' ? 'vip' : ''}}">
         {{memberLabel}}
       </view>

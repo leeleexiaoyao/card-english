@@ -26,6 +26,7 @@ Page({
     },
     profileLoading: false,
     showProfileEditor: false,
+    editingNickName: false,
     editNickName: "",
     editAvatarUrl: "/images/icons/avatar.png",
     savingProfile: false,
@@ -155,6 +156,7 @@ Page({
         memberLabel: getMembershipLabel(null),
         freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
         showProfileEditor: false,
+        editingNickName: false,
         editNickName: "",
         editAvatarUrl: "/images/icons/avatar.png",
         customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
@@ -174,6 +176,7 @@ Page({
         memberLabel: getMembershipLabel(decoratedUser),
         freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
         showProfileEditor: Boolean(decoratedUser && !decoratedUser.profileCompleted),
+        editingNickName: false,
         editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
         editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
         customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
@@ -184,6 +187,7 @@ Page({
         memberLabel: getMembershipLabel(null),
         freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
         showProfileEditor: false,
+        editingNickName: false,
         editNickName: "",
         editAvatarUrl: "/images/icons/avatar.png",
         customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
@@ -219,6 +223,46 @@ Page({
       successTitle: "头像已更新",
       requireNickName: false,
     });
+  },
+
+  onStartNickNameEdit() {
+    if (!this.data.profile.loggedIn) {
+      return;
+    }
+    if (!this.requireProfileAction()) {
+      return;
+    }
+    this.setData({
+      editingNickName: true,
+      editNickName: this.data.editNickName || this.data.profile.nickName || "",
+    });
+  },
+
+  onNickNameInput(e) {
+    this.setData({
+      editNickName: String((e.detail && e.detail.value) || ""),
+    });
+  },
+
+  onNickNameBlur(e) {
+    const nickName = String((e.detail && e.detail.value) || this.data.editNickName || "");
+    this.setData({
+      editNickName: nickName,
+      editingNickName: false,
+    });
+    if (!String(nickName || "").trim()) {
+      return;
+    }
+    this.persistProfile({
+      nickName,
+      avatarUrl: this.data.editAvatarUrl,
+      successTitle: "昵称已更新",
+      requireNickName: true,
+    });
+  },
+
+  onNickNameConfirm(e) {
+    this.onNickNameBlur(e);
   },
 
   async persistProfile(options = {}) {
@@ -283,6 +327,7 @@ Page({
         memberLabel: getMembershipLabel(decoratedUser),
         freeRemainingCount: getRemainingFreeCount(decoratedUser, getCurrentDateKey()),
         showProfileEditor: false,
+        editingNickName: false,
         editNickName: decoratedUser ? decoratedUser.nickName || "" : "",
         editAvatarUrl: decoratedUser ? decoratedUser.avatarUrl || "/images/icons/avatar.png" : "/images/icons/avatar.png",
         customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,
@@ -320,6 +365,7 @@ Page({
           memberLabel: getMembershipLabel(null),
           freeRemainingCount: getRemainingFreeCount(null, getCurrentDateKey()),
           showProfileEditor: false,
+          editingNickName: false,
           editNickName: "",
           editAvatarUrl: "/images/icons/avatar.png",
           customWordTagName: DEFAULT_CUSTOM_WORD_TAG_NAME,

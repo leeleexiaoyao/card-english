@@ -56,6 +56,34 @@
   text-align: left;
 }
 
+.editable-name {
+  position: relative;
+}
+
+.editable-name::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6rpx;
+  height: 2rpx;
+  background: rgba(4, 120, 245, 0.22);
+}
+
+.name-input {
+  min-width: 220rpx;
+  height: 52rpx;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e1e1e;
+  line-height: 52rpx;
+  text-align: left;
+}
+
 .role-tag {
   min-width: 100rpx;
   height: 44rpx;
